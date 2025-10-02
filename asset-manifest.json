@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "/maintenance/static/css/main.f7b9b081.css",
+    "main.js": "/maintenance/static/js/main.5f8fca24.js",
+    "service-worker.js": "/maintenance/service-worker.js",
+    "index.html": "/maintenance/index.html",
+    "main.f7b9b081.css.map": "/maintenance/static/css/main.f7b9b081.css.map",
+    "main.5f8fca24.js.map": "/maintenance/static/js/main.5f8fca24.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.f7b9b081.css",
+    "static/js/main.5f8fca24.js"
+  ]
+}
