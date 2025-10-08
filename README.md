@@ -11,12 +11,14 @@
 ## Быстрый старт
 ```bash
 npm install
-cp .env.example .env  # пропишите REACT_APP_API_URL
+cp .env.example .env  # при необходимости поправьте REACT_APP_API_URL
+npm run api           # старт локального REST API на http://localhost:3001
 npm start
 ```
 
 ## Переменные окружения
-- `REACT_APP_API_URL` — конечная точка JSON-сервиса, принимающая `POST` и отдающая `GET`. Пример: `https://example.com/api/maintenance`.
+- `REACT_APP_API_URL` — конечная точка JSON-сервиса, отдающая список (`GET`). Пример локального значения: `http://localhost:3001/records`.
+  Если URL оканчивается на `.json`, приложение автоматически будет отправлять `POST` на `/api/<имя-файла>`. При необходимости можно явно указать путь для сохранения, добавив якорь `#post=` (например, `https://api.example.com/data.json#post=/api/records`).
 
 ## Сборка
 ```bash
