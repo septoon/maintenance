@@ -113,6 +113,48 @@ const App: React.FC = () => {
         <h1>Авто обслуживание</h1>
       </section>
 
+            <section>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>Kia Rio IV</h2>
+        </header>
+
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>Госномер:</h3>
+          <span style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>М542ТМ 82</span>
+        </header>
+
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>VIN:</h3>
+          <span style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>Z94C241BBJR037440</span>
+        </header>
+
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>СТС:</h3>
+          <span style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>99 84 824631</span>
+        </header>
+
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>ПТС:</h3>
+          <span style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>82 РУ 074120</span>
+        </header>
+
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>Цвет кузова (кабины):</h3>
+          <span style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>Белый</span>
+        </header>
+
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>Объем двигателя (см³):</h3>
+          <span style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>1591</span>
+        </header>
+
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>Мощьность (л.с.):</h3>
+          <span style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>123</span>
+        </header>
+
+      </section>
+
       <section>
         <form onSubmit={handleSubmit}>
           <label>
