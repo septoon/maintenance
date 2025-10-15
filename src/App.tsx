@@ -113,7 +113,7 @@ const App: React.FC = () => {
         <h1>Авто обслуживание</h1>
       </section>
 
-            <section>
+      <section>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>Kia Rio IV</h2>
         </header>
@@ -251,13 +251,37 @@ const App: React.FC = () => {
 
         {lastRecords.length > 0 && (
           <ul>
-            {lastRecords.map(record => (
-              <li key={record.id ?? `${record.date}-${record.procedure}-${record.mileage}`}>
-                <strong>{formatDisplayDate(record.date)}</strong>
-                <span>{record.procedure}</span>
-                <span style={{ color: '#1e3a8a', fontWeight: 600 }}>{record.mileage.toLocaleString('ru-RU')} км</span>
-              </li>
-            ))}
+            {lastRecords.map(record => {
+              // Интервалы в км по типу процедуры
+              const intervalByProcedure: Record<string, number> = {
+                'Замена свечей': 6000,
+                'Замена масла': 20000,
+                'Замена колодок': 40000,
+              };
+
+              const interval = intervalByProcedure[record.procedure];
+              const nextMileage = typeof interval === 'number' ? record.mileage + interval : null;
+
+              return (
+                <li key={record.id ?? `${record.date}-${record.procedure}-${record.mileage}`}>
+                  <strong>{formatDisplayDate(record.date)}</strong>
+                  <div>
+                    <span>{record.procedure} - </span>
+                    <span style={{ color: '#1e3a8a', fontWeight: 600 }}>{record.mileage.toLocaleString('ru-RU')} км</span>
+                  </div>
+                  <div>
+                    <span>След. замена ~ </span>
+                    {nextMileage !== null ? (
+                      <span style={{ color: '#1e3a8a', fontWeight: 600 }}>
+                        {nextMileage.toLocaleString('ru-RU')} км
+                      </span>
+                    ) : (
+                      <span>не задано</span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
