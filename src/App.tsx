@@ -254,8 +254,8 @@ const App: React.FC = () => {
             {lastRecords.map(record => {
               // Интервалы в км по типу процедуры
               const intervalByProcedure: Record<string, number> = {
-                'Замена свечей': 6000,
-                'Замена масла': 20000,
+                'Замена масла': 6000,
+                'Замена свечей': 20000,
                 'Замена колодок': 40000,
               };
 
