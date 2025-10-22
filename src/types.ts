@@ -10,3 +10,16 @@ export type MaintenanceRecordInput = {
   procedure: string;
   mileage: number;
 };
+
+export type FuelRecord = {
+  id?: string;
+  date: string;
+  mileage?: number | null;
+  liters?: number | null;
+};
+
+export type FuelRecordInput = {
+  date: string;
+  mileage?: number | null;
+  liters?: number | null;
+};
