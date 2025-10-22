@@ -171,12 +171,22 @@ const App: React.FC = () => {
         fuelDiff: 0,
         diffLabel: '',
         explanation: '',
+        lastMileage: null,
         hasData: false
       };
     }
 
-    const totalMileage = fuelRecords.reduce((acc, item) => acc + (item.mileage ?? 0), 0);
-    const totalLiters = fuelRecords.reduce((acc, item) => acc + (item.liters ?? 0), 0);
+    const orderedFuelRecords = [...fuelRecords].sort((a, b) => {
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return -1;
+      if (!b.date) return 1;
+      return a.date < b.date ? -1 : 1;
+    });
+
+    const totalMileage = orderedFuelRecords.reduce((acc, item) => acc + (item.mileage ?? 0), 0);
+    const lastMileageEntry = orderedFuelRecords[orderedFuelRecords.length - 1];
+    const lastMileage = lastMileageEntry?.mileage ?? null;
+    const totalLiters = orderedFuelRecords.reduce((acc, item) => acc + (item.liters ?? 0), 0);
     const fuelNorm = totalMileage > 0 ? (totalMileage * FUEL_CONSUMPTION_RATE) / 100 : 0;
     const fuelDiff = fuelNorm - totalLiters;
     const diffSign = fuelDiff > 0 ? '+' : fuelDiff < 0 ? '-' : '';
@@ -196,7 +206,8 @@ const App: React.FC = () => {
       fuelDiff,
       diffLabel,
       explanation,
-      hasData: totalMileage > 0 || totalLiters > 0
+      lastMileage,
+      hasData: totalMileage > 0 || totalLiters > 0 || lastMileage !== null
     };
   }, [fuelRecords, gasApiIsConfigured]);
 
@@ -357,6 +368,12 @@ const App: React.FC = () => {
                     {formatNumber(fuelSummary.totalMileage, 0)} км
                   </dd>
                 </div>
+                <div className="flex items-center justify-between opacity-50">
+                  <dt className="font-light text-slate-900">Последний пробег:</dt>
+                  <dd className="text-sm font-light text-slate-900">
+                    {fuelSummary.lastMileage !== null ? `+${formatNumber(fuelSummary.lastMileage, 0)} км` : 'нет данных'}
+                  </dd>
+                </div>
                 <div className="flex items-center justify-between">
                   <dt className="font-medium text-slate-900">Норма топлива:</dt>
                   <dd className="text-base font-semibold text-slate-900">
@@ -383,7 +400,7 @@ const App: React.FC = () => {
       </main>
 
       <nav
-  className="fixed bottom-4 left-1/2 flex w-2/3 -translate-x-1/2 items-center justify-between rounded-full border border-white/60 bg-white/20 px-6 py-3 shadow-card backdrop-blur-lg">
+  className="fixed bottom-4 left-1/2 flex w-3/4 -translate-x-1/2 items-center justify-between rounded-full border border-white/60 bg-white/10 px-6 py-3 shadow-card backdrop-blur-lg">
         <button
           type="button"
           onClick={() => setMaintenanceDialogOpen(true)}
