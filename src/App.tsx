@@ -245,19 +245,6 @@ const App: React.FC = () => {
           </dl>
         </section>
 
-        <MaintenanceForm
-          sectionClassName={cardClass}
-          fieldClassName={fieldClasses}
-          buttonClassName={primaryButtonClass}
-          form={form}
-          submitting={submitting}
-          apiIsConfigured={apiIsConfigured}
-          error={error}
-          success={success}
-          onChange={handleChange}
-          onSubmit={handleSubmit}
-        />
-
         <section className={cardClass}>
           <header className="mb-4 flex flex-wrap items-center gap-3">
             <h2 className="flex-1 text-xl font-semibold text-slate-900">Последние записи</h2>
@@ -395,7 +382,8 @@ const App: React.FC = () => {
         </section>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-4 mx-auto flex w-full max-w-md items-center justify-between rounded-full border border-white/60 bg-white/80 px-6 py-3 shadow-card backdrop-blur-lg">
+      <nav
+  className="fixed bottom-4 left-1/2 flex w-2/3 -translate-x-1/2 items-center justify-between rounded-full border border-white/60 bg-white/20 px-6 py-3 shadow-card backdrop-blur-lg">
         <button
           type="button"
           onClick={() => setMaintenanceDialogOpen(true)}

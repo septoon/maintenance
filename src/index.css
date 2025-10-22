@@ -18,4 +18,12 @@
   #root {
     @apply min-h-screen;
   }
+
+  input[type='date'] {
+    @apply block w-full min-w-0;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator {
+    display: none;
+  }
 }
