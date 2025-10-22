@@ -49,7 +49,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
         <label className="flex flex-col gap-2 text-sm font-medium text-slate-900">
           Дата обслуживания
-          <div className="relative">
+          <div className="flex items-center gap-3">
             <input
               ref={dateInputRef}
               type="date"
@@ -58,14 +58,14 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
               onChange={onChange}
               required
               disabled={submitting || !apiIsConfigured}
-              className={`${fieldClassName} pr-14`}
+              className={`${fieldClassName} flex-1 min-w-0`}
             />
             <button
               type="button"
               aria-label="Выбрать дату обслуживания"
               onClick={openDatePicker}
               disabled={submitting || !apiIsConfigured}
-              className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full p-1 text-slate-400 transition hover:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:text-slate-300"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-900/10 bg-white/90 text-slate-500 shadow-sm transition hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:text-slate-300"
             >
               <i className="pi pi-calendar text-lg" aria-hidden="true" />
             </button>
