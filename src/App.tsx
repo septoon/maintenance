@@ -423,10 +423,10 @@ const App: React.FC = () => {
         onHide={() => setMaintenanceDialogOpen(false)}
         style={dialogStyle}
         className="p-0"
-        contentClassName="bg-transparent"
+        contentClassName=""
       >
         <MaintenanceForm
-          sectionClassName={`${cardClass} mb-4`}
+          sectionClassName={`mb-4`}
           fieldClassName={fieldClasses}
           buttonClassName={primaryButtonClass}
           form={form}
@@ -447,10 +447,10 @@ const App: React.FC = () => {
         onHide={() => setFuelDialogOpen(false)}
         style={dialogStyle}
         className="p-0"
-        contentClassName="bg-transparent"
+        contentClassName=""
       >
         <FuelCalculatorForm
-          sectionClassName={`${cardClass} mb-4`}
+          sectionClassName={`mb-4`}
           fieldClassName={fieldClasses}
           buttonClassName={primaryButtonClass}
           apiIsConfigured={gasApiIsConfigured}
