@@ -1,14 +1,21 @@
 {
   "files": {
-    "main.css": "/maintenance/static/css/main.6d8bc27a.css",
-    "main.js": "/maintenance/static/js/main.4e929f39.js",
+    "main.css": "/maintenance/static/css/main.2e79490d.css",
+    "main.js": "/maintenance/static/js/main.3e673eb2.js",
+    "static/media/InterVariable-Italic.woff2": "/maintenance/static/media/InterVariable-Italic.e295f70fe3e2df296c7b.woff2",
+    "static/media/InterVariable.woff2": "/maintenance/static/media/InterVariable.a0e477f2f1f9d2376fde.woff2",
+    "static/media/primeicons.svg": "/maintenance/static/media/primeicons.6ed59f962963a4a73af2.svg",
+    "static/media/primeicons.eot": "/maintenance/static/media/primeicons.ff0c4cd79b2ffca2de54.eot",
+    "static/media/primeicons.woff": "/maintenance/static/media/primeicons.8931fda1930c3bd21e96.woff",
+    "static/media/primeicons.ttf": "/maintenance/static/media/primeicons.a5c2a53d1ff7a9ff5933.ttf",
+    "static/media/primeicons.woff2": "/maintenance/static/media/primeicons.024b32cc7bf399b1a847.woff2",
     "service-worker.js": "/maintenance/service-worker.js",
     "index.html": "/maintenance/index.html",
-    "main.6d8bc27a.css.map": "/maintenance/static/css/main.6d8bc27a.css.map",
-    "main.4e929f39.js.map": "/maintenance/static/js/main.4e929f39.js.map"
+    "main.2e79490d.css.map": "/maintenance/static/css/main.2e79490d.css.map",
+    "main.3e673eb2.js.map": "/maintenance/static/js/main.3e673eb2.js.map"
   },
   "entrypoints": [
-    "static/css/main.6d8bc27a.css",
-    "static/js/main.4e929f39.js"
+    "static/css/main.2e79490d.css",
+    "static/js/main.3e673eb2.js"
   ]
 }
