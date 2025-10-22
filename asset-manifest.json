@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/maintenance/static/css/main.9d974636.css",
-    "main.js": "/maintenance/static/js/main.ff8db59e.js",
+    "main.css": "/maintenance/static/css/main.11fad169.css",
+    "main.js": "/maintenance/static/js/main.230e31bb.js",
     "static/media/InterVariable-Italic.woff2": "/maintenance/static/media/InterVariable-Italic.e295f70fe3e2df296c7b.woff2",
     "static/media/InterVariable.woff2": "/maintenance/static/media/InterVariable.a0e477f2f1f9d2376fde.woff2",
     "static/media/primeicons.svg": "/maintenance/static/media/primeicons.6ed59f962963a4a73af2.svg",
@@ -11,11 +11,11 @@
     "static/media/primeicons.woff2": "/maintenance/static/media/primeicons.024b32cc7bf399b1a847.woff2",
     "service-worker.js": "/maintenance/service-worker.js",
     "index.html": "/maintenance/index.html",
-    "main.9d974636.css.map": "/maintenance/static/css/main.9d974636.css.map",
-    "main.ff8db59e.js.map": "/maintenance/static/js/main.ff8db59e.js.map"
+    "main.11fad169.css.map": "/maintenance/static/css/main.11fad169.css.map",
+    "main.230e31bb.js.map": "/maintenance/static/js/main.230e31bb.js.map"
   },
   "entrypoints": [
-    "static/css/main.9d974636.css",
-    "static/js/main.ff8db59e.js"
+    "static/css/main.11fad169.css",
+    "static/js/main.230e31bb.js"
   ]
 }
