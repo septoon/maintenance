@@ -61,7 +61,7 @@ const FuelSection: React.FC<FuelSectionProps> = ({
         <span
               className={`text-base font-semibold ${fuelSummary.totals.fuelDiff < 0 ? 'text-red-600 dark:text-red-400' : fuelSummary.totals.fuelDiff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
             >
-              перерасход {fuelSummary.totals.diffLabel}
+              {fuelSummary.totals.fuelDiff < 0 ? 'долг' : 'в плюсе'} {fuelSummary.totals.diffLabel}
             </span>
       </header>
 
