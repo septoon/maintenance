@@ -13,6 +13,13 @@ const initialFormState: MaintenanceFormValues = {
 };
 
 const FUEL_CONSUMPTION_RATE = 9.4;
+const FUEL_CONSUMPTION_RATE_INCREASE = 0.07;
+const FUEL_CONSUMPTION_RATE_DATES = new Set([
+  '2025-12-31',
+  '2026-01-31',
+  '2026-02-28',
+  '2026-03-31'
+]);
 
 function formatDisplayDate(value: string) {
   if (!value) return '';
@@ -30,6 +37,14 @@ function formatNumber(value: number, maximumFractionDigits = 1): string {
     minimumFractionDigits: 0,
     maximumFractionDigits
   });
+}
+
+function getFuelConsumptionRate(date?: string): number {
+  if (date && FUEL_CONSUMPTION_RATE_DATES.has(date)) {
+    return FUEL_CONSUMPTION_RATE * (1 + FUEL_CONSUMPTION_RATE_INCREASE);
+  }
+
+  return FUEL_CONSUMPTION_RATE;
 }
 
 const App: React.FC = () => {
@@ -187,7 +202,12 @@ const App: React.FC = () => {
     const lastMileageEntry = orderedFuelRecords[orderedFuelRecords.length - 1];
     const lastMileage = lastMileageEntry?.mileage ?? null;
     const totalLiters = orderedFuelRecords.reduce((acc, item) => acc + (item.liters ?? 0), 0);
-    const fuelNorm = totalMileage > 0 ? (totalMileage * FUEL_CONSUMPTION_RATE) / 100 : 0;
+    const fuelNorm = orderedFuelRecords.reduce((acc, item) => {
+      const mileage = item.mileage ?? 0;
+      if (mileage <= 0) return acc;
+      const rate = getFuelConsumptionRate(item.date);
+      return acc + (mileage * rate) / 100;
+    }, 0);
     const fuelDiff = fuelNorm - totalLiters;
     const diffSign = fuelDiff > 0 ? '+' : fuelDiff < 0 ? '-' : '';
     const diffLabel = `${diffSign}${formatNumber(Math.abs(fuelDiff))} л`;
