@@ -94,7 +94,9 @@ function normalizeFuelRecord(raw: any): FuelRecord {
     id: raw.id ?? raw._id,
     date: String(raw.date ?? ''),
     mileage: raw.mileage !== undefined && raw.mileage !== null ? Number(raw.mileage) : null,
-    liters: raw.liters !== undefined && raw.liters !== null ? Number(raw.liters) : null
+    liters: raw.liters !== undefined && raw.liters !== null ? Number(raw.liters) : null,
+    fuelCost:
+      raw.fuelCost !== undefined && raw.fuelCost !== null ? Number(raw.fuelCost) : null
   };
 }
 
@@ -103,7 +105,9 @@ function normalizeFuelInput(input: FuelRecordInput): FuelRecord {
     date: input.date,
     mileage:
       input.mileage !== undefined && input.mileage !== null ? Number(input.mileage) : null,
-    liters: input.liters !== undefined && input.liters !== null ? Number(input.liters) : null
+    liters: input.liters !== undefined && input.liters !== null ? Number(input.liters) : null,
+    fuelCost:
+      input.fuelCost !== undefined && input.fuelCost !== null ? Number(input.fuelCost) : null
   };
 }
 
@@ -140,8 +144,12 @@ export async function createFuelRecord(input: FuelRecordInput): Promise<FuelReco
   const { createUrl, readUrl } = resolveConfig();
   const normalized = normalizeFuelInput(input);
 
-  if (normalized.mileage === null && normalized.liters === null) {
-    throw new Error('Укажите пробег или бензин перед отправкой.');
+  if (
+    normalized.mileage === null &&
+    normalized.liters === null &&
+    normalized.fuelCost === null
+  ) {
+    throw new Error('Укажите пробег, бензин или стоимость перед отправкой.');
   }
 
   const payload: Record<string, unknown> = {
@@ -160,6 +168,13 @@ export async function createFuelRecord(input: FuelRecordInput): Promise<FuelReco
       throw new Error('Некорректное значение количества топлива.');
     }
     payload.liters = normalized.liters;
+  }
+
+  if (normalized.fuelCost !== null) {
+    if (Number.isNaN(normalized.fuelCost)) {
+      throw new Error('Некорректное значение суммы заправки.');
+    }
+    payload.fuelCost = normalized.fuelCost;
   }
 
   try {

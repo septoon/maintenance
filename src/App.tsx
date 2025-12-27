@@ -5,6 +5,7 @@ import FuelCalculatorForm from './services/components/fuelCalculatorForm';
 import { createRecord, fetchRecords } from './services/maintenanceApi';
 import { fetchFuelRecords } from './services/fuelApi';
 import { FuelRecord, MaintenanceRecord } from './types';
+import VTB from './assets/VTB_Logo.png';
 
 const initialFormState: MaintenanceFormValues = {
   date: '',
@@ -20,6 +21,20 @@ const FUEL_CONSUMPTION_RATE_DATES = new Set([
   '2026-02-28',
   '2026-03-31'
 ]);
+const MONTH_LABELS = [
+  'Январь',
+  'Февраль',
+  'Март',
+  'Апрель',
+  'Май',
+  'Июнь',
+  'Июль',
+  'Август',
+  'Сентябрь',
+  'Октябрь',
+  'Ноябрь',
+  'Декабрь'
+];
 
 function formatDisplayDate(value: string) {
   if (!value) return '';
@@ -39,8 +54,29 @@ function formatNumber(value: number, maximumFractionDigits = 1): string {
   });
 }
 
+function normalizeDate(value?: string): string {
+  return value ? value.trim().slice(0, 10) : '';
+}
+
+function getMonthInfo(date?: string): { key: string; label: string } | null {
+  const normalized = normalizeDate(date);
+  if (!normalized) return null;
+
+  const [year, month] = normalized.split('-');
+  const monthIndex = Number(month) - 1;
+
+  if (!year || Number.isNaN(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+    return null;
+  }
+
+  return {
+    key: `${year}-${month}`,
+    label: `${MONTH_LABELS[monthIndex]} ${year}`
+  };
+}
+
 function getFuelConsumptionRate(date?: string): number {
-  const normalizedDate = date ? date.trim().slice(0, 10) : '';
+  const normalizedDate = normalizeDate(date);
 
   if (normalizedDate && FUEL_CONSUMPTION_RATE_DATES.has(normalizedDate)) {
     return FUEL_CONSUMPTION_RATE * (1 + FUEL_CONSUMPTION_RATE_INCREASE);
@@ -182,13 +218,17 @@ const App: React.FC = () => {
   const fuelSummary = useMemo(() => {
     if (!gasApiIsConfigured || fuelRecords.length === 0) {
       return {
-        totalMileage: 0,
-        totalLiters: 0,
-        fuelNorm: 0,
-        fuelDiff: 0,
-        diffLabel: '',
+        monthly: [],
+        totals: {
+          totalMileage: 0,
+          totalLiters: 0,
+          fuelNorm: 0,
+          totalFuelCost: 0,
+          totalCompensation: 0,
+          fuelDiff: 0,
+          diffLabel: ''
+        },
         explanation: '',
-        lastMileage: null,
         hasData: false
       };
     }
@@ -200,16 +240,68 @@ const App: React.FC = () => {
       return a.date < b.date ? -1 : 1;
     });
 
-    const totalMileage = orderedFuelRecords.reduce((acc, item) => acc + (item.mileage ?? 0), 0);
-    const lastMileageEntry = orderedFuelRecords[orderedFuelRecords.length - 1];
-    const lastMileage = lastMileageEntry?.mileage ?? null;
-    const totalLiters = orderedFuelRecords.reduce((acc, item) => acc + (item.liters ?? 0), 0);
-    const fuelNorm = orderedFuelRecords.reduce((acc, item) => {
+    const monthlyMap = new Map<
+      string,
+      {
+        key: string;
+        sortKey: string;
+        label: string;
+        totalMileage: number;
+        totalLiters: number;
+        fuelNorm: number;
+        fuelCost: number;
+      }
+    >();
+
+    orderedFuelRecords.forEach(item => {
+      const monthInfo = getMonthInfo(item.date);
+      const key = monthInfo?.key ?? 'unknown';
+      const sortKey = monthInfo?.key ?? '9999-99';
+      const label = monthInfo?.label ?? 'Без даты';
       const mileage = item.mileage ?? 0;
-      if (mileage <= 0) return acc;
-      const rate = getFuelConsumptionRate(item.date);
-      return acc + (mileage * rate) / 100;
-    }, 0);
+      const liters = item.liters ?? 0;
+      const fuelCost = item.fuelCost ?? 0;
+      const fuelNorm = mileage > 0 ? (mileage * getFuelConsumptionRate(item.date)) / 100 : 0;
+      const existing = monthlyMap.get(key) ?? {
+        key,
+        sortKey,
+        label,
+        totalMileage: 0,
+        totalLiters: 0,
+        fuelNorm: 0,
+        fuelCost: 0
+      };
+
+      existing.totalMileage += mileage;
+      existing.totalLiters += liters;
+      existing.fuelNorm += fuelNorm;
+      existing.fuelCost += fuelCost;
+      monthlyMap.set(key, existing);
+    });
+
+    const monthly = Array.from(monthlyMap.values())
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+      .map(month => {
+        const fuelDiff = month.fuelNorm - month.totalLiters;
+        const diffSign = fuelDiff > 0 ? '+' : fuelDiff < 0 ? '-' : '';
+        const diffLabel = `${diffSign}${formatNumber(Math.abs(fuelDiff))} л`;
+        const approvedRate =
+          month.totalMileage > 0 ? (month.fuelNorm / month.totalMileage) * 100 : 0;
+        const compensation = month.totalMileage * 5;
+        return {
+          ...month,
+          fuelDiff,
+          diffLabel,
+          approvedRate,
+          compensation
+        };
+      });
+
+    const totalMileage = monthly.reduce((acc, item) => acc + item.totalMileage, 0);
+    const totalLiters = monthly.reduce((acc, item) => acc + item.totalLiters, 0);
+    const fuelNorm = monthly.reduce((acc, item) => acc + item.fuelNorm, 0);
+    const totalFuelCost = monthly.reduce((acc, item) => acc + item.fuelCost, 0);
+    const totalCompensation = monthly.reduce((acc, item) => acc + item.compensation, 0);
     const fuelDiff = fuelNorm - totalLiters;
     const diffSign = fuelDiff > 0 ? '+' : fuelDiff < 0 ? '-' : '';
     const diffLabel = `${diffSign}${formatNumber(Math.abs(fuelDiff))} л`;
@@ -222,14 +314,18 @@ const App: React.FC = () => {
     }
 
     return {
-      totalMileage,
-      totalLiters,
-      fuelNorm,
-      fuelDiff,
-      diffLabel,
+      monthly,
+      totals: {
+        totalMileage,
+        totalLiters,
+        fuelNorm,
+        totalFuelCost,
+        totalCompensation,
+        fuelDiff,
+        diffLabel
+      },
       explanation,
-      lastMileage,
-      hasData: totalMileage > 0 || totalLiters > 0 || lastMileage !== null
+      hasData: monthly.length > 0
     };
   }, [fuelRecords, gasApiIsConfigured]);
 
@@ -351,14 +447,7 @@ const App: React.FC = () => {
         <section className={cardClass}>
           <header className="mb-4 flex flex-wrap items-center gap-3">
             <h2 className="flex-1 text-xl font-semibold text-slate-900">Расчёт топлива</h2>
-            <button
-              type="button"
-              onClick={loadFuelRecords}
-              disabled={fuelLoading || !gasApiIsConfigured}
-              className={refreshButtonClass}
-            >
-              {fuelLoading ? 'Обновляем…' : 'Обновить'}
-            </button>
+            <img src={VTB} alt="VTB" className="h-8 w-auto sm:h-6" />
           </header>
 
           {!gasApiIsConfigured && (
@@ -383,39 +472,101 @@ const App: React.FC = () => {
 
           {gasApiIsConfigured && fuelSummary.hasData && (
             <div className="space-y-4">
-              <dl className="space-y-3 text-sm text-slate-700">
+              <div className="space-y-3">
+                {fuelSummary.monthly.map(month => (
+                  <div
+                    key={month.key}
+                    className="rounded-2xl border border-slate-900/10 bg-white/70 p-4 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-semibold text-slate-900">{month.label}</h3>
+                      <span
+                        className={`text-sm font-light ${month.fuelDiff < 0 ? 'text-red-600' : month.fuelDiff > 0 ? 'text-emerald-600' : 'text-slate-900'}`}
+                      >
+                        {formatNumber(month.approvedRate, 2)} л / 100 км
+                      </span>
+                    </div>
+                    <dl className="mt-3 space-y-2 text-sm text-slate-700">
+                      <div className="flex items-center justify-between">
+                        <dt className="font-medium text-slate-900">Пройдено км:</dt>
+                        <dd className="text-base font-semibold text-slate-900">
+                          {formatNumber(month.totalMileage, 0)} км
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <dt className="font-medium text-slate-900">Норма топлива:</dt>
+                        <dd className="text-base font-light text-slate-900">
+                          {formatNumber(month.fuelNorm)} л
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <dt className="font-medium text-slate-900">Заправлено:</dt>
+                        <dd className="text-base font-semibold text-slate-900">
+                          {formatNumber(month.totalLiters)} л
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <dt className="font-medium text-slate-900">Сумма заправки:</dt>
+                        <dd className="text-base font-light text-slate-900">
+                          {formatNumber(month.fuelCost, 2)} ₽
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <dt className="font-medium text-slate-900">Разница:</dt>
+                        <dd
+                          className={`text-base font-semibold ${month.fuelDiff < 0 ? 'text-red-600' : month.fuelDiff > 0 ? 'text-emerald-600' : 'text-slate-900'}`}
+                        >
+                          {month.diffLabel}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <dt className="font-medium text-slate-900">Компенсация ГСМ:</dt>
+                        <dd className="text-base font-semibold text-slate-900">
+                          {formatNumber(month.compensation, 0)} ₽
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-2xl border border-slate-900/10 bg-slate-50/70 px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <dt className="font-medium text-slate-900">Пройдено км:</dt>
-                  <dd className="text-base font-semibold text-slate-900">
-                    {formatNumber(fuelSummary.totalMileage, 0)} км
-                  </dd>
+                  <span className="text-base font-semibold text-green-900">Итог за период</span>
                 </div>
-                <div className="flex items-center justify-between opacity-50">
-                  <dt className="font-light text-slate-900">Последний пробег:</dt>
-                  <dd className="text-sm font-light text-slate-900">
-                    {fuelSummary.lastMileage !== null ? `+${formatNumber(fuelSummary.lastMileage, 0)} км` : 'нет данных'}
-                  </dd>
+                <dl className="mt-3 space-y-2 text-sm text-slate-700">
+                  <div className="flex items-center justify-between">
+                    <dt className="font-medium text-slate-900">Пройдено км:</dt>
+                    <dd className="text-base font-semibold text-slate-900">
+                      {formatNumber(fuelSummary.totals.totalMileage, 0)} км
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="font-medium text-slate-900">Заправлено:</dt>
+                    <dd className="text-base font-semibold text-slate-900">
+                      {formatNumber(fuelSummary.totals.totalLiters)} л
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="font-medium text-slate-900">Сумма заправки:</dt>
+                    <dd className="text-base font-semibold text-slate-900">
+                      {formatNumber(fuelSummary.totals.totalFuelCost, 2)} ₽
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="font-medium text-slate-900">Компенсация ГСМ:</dt>
+                    <dd className="text-base font-semibold text-slate-900">
+                      {formatNumber(fuelSummary.totals.totalCompensation, 0)} ₽
+                    </dd>
+                  </div>
+                </dl>
+                <div className='mt-4'>
+                  <span
+                    className={`text-base font-semibold ${fuelSummary.totals.fuelDiff < 0 ? 'text-red-600' : fuelSummary.totals.fuelDiff > 0 ? 'text-emerald-600' : 'text-slate-900'}`}
+                  >
+                    Перерасход топлива на {fuelSummary.totals.diffLabel}
+                </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <dt className="font-medium text-slate-900">Норма топлива:</dt>
-                  <dd className="text-base font-semibold text-slate-900">
-                    {formatNumber(fuelSummary.fuelNorm)} л
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="font-medium text-slate-900">Заправлено:</dt>
-                  <dd className="text-base font-semibold text-slate-900">
-                    {formatNumber(fuelSummary.totalLiters)} л
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="font-medium text-slate-900">Разница:</dt>
-                  <dd className={`text-base font-semibold ${fuelSummary.fuelDiff < 0 ? 'text-red-600' : fuelSummary.fuelDiff > 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                    {fuelSummary.diffLabel}
-                  </dd>
-                </div>
-              </dl>
-              <p className="text-sm font-medium text-slate-700">{fuelSummary.explanation}</p>
+              </div>
             </div>
           )}
         </section>

@@ -16,10 +16,12 @@ export type FuelRecord = {
   date: string;
   mileage?: number | null;
   liters?: number | null;
+  fuelCost?: number | null;
 };
 
 export type FuelRecordInput = {
   date: string;
   mileage?: number | null;
   liters?: number | null;
+  fuelCost?: number | null;
 };
