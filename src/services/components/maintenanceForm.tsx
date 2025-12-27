@@ -47,7 +47,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
   return (
     <section className={sectionClassName}>
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-        <label className="flex flex-col gap-2 text-sm font-medium text-slate-900">
+        <label className="flex flex-col gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
           Дата обслуживания
           <div className="flex items-center gap-3">
             <input
@@ -65,14 +65,14 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
               aria-label="Выбрать дату обслуживания"
               onClick={openDatePicker}
               disabled={submitting || !apiIsConfigured}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-900/10 bg-white/90 text-slate-500 shadow-sm transition hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:text-slate-300"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-900/10 bg-white/90 text-slate-500 shadow-sm transition hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:text-slate-300 dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-400 dark:hover:text-slate-200 dark:focus-visible:outline-blue-300"
             >
               <i className="pi pi-calendar text-lg" aria-hidden="true" />
             </button>
           </div>
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium text-slate-900">
+        <label className="flex flex-col gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
           Процедура
           <textarea
             name="procedure"
@@ -86,7 +86,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
           />
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium text-slate-900">
+        <label className="flex flex-col gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
           Пробег (км)
           <input
             type="number"
@@ -111,12 +111,12 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
       </form>
 
       {error && (
-        <div className="mt-4 rounded-2xl border border-red-400/45 bg-red-100/70 px-4 py-3 text-sm font-medium text-red-700">
+        <div className="mt-4 rounded-2xl border border-red-400/45 bg-red-100/70 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/50 dark:bg-red-950/40 dark:text-red-200">
           {error}
         </div>
       )}
       {success && (
-        <div className="mt-4 rounded-2xl border border-green-400/45 bg-green-100/70 px-4 py-3 text-sm font-medium text-green-700">
+        <div className="mt-4 rounded-2xl border border-green-400/45 bg-green-100/70 px-4 py-3 text-sm font-medium text-green-700 dark:border-emerald-500/50 dark:bg-emerald-950/40 dark:text-emerald-200">
           {success}
         </div>
       )}

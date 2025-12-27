@@ -1,7 +1,12 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import MaintenanceForm, { MaintenanceFormValues } from './services/components/maintenanceForm';
-import FuelCalculatorForm from './services/components/fuelCalculatorForm';
+import SalaryPage from './services/components/salaryPage';
+import TitleCard from './services/components/titleCard';
+import VehicleInfoCard from './services/components/vehicleInfoCard';
+import MaintenanceSection from './services/components/maintenanceSection';
+import FuelSection from './services/components/fuelSection';
+import BottomNav from './services/components/bottomNav';
 import { createRecord, fetchRecords } from './services/maintenanceApi';
 import { fetchFuelRecords } from './services/fuelApi';
 import { FuelRecord, MaintenanceRecord } from './types';
@@ -35,13 +40,6 @@ const MONTH_LABELS = [
   'Ноябрь',
   'Декабрь'
 ];
-
-function formatDisplayDate(value: string) {
-  if (!value) return '';
-  const [year, month, day] = value.split('-');
-  if (!year || !month || !day) return value;
-  return `${day}.${month}.${year}`;
-}
 
 function sortRecords(records: MaintenanceRecord[]) {
   return [...records].sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -93,7 +91,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
-  const [fuelDialogOpen, setFuelDialogOpen] = useState(false);
+  const [salaryPageOpen, setSalaryPageOpen] = useState(false);
 
   const [fuelRecords, setFuelRecords] = useState<FuelRecord[]>([]);
   const [fuelLoading, setFuelLoading] = useState(false);
@@ -205,15 +203,15 @@ const App: React.FC = () => {
 
   const lastRecords = useMemo(() => sortRecords(records).slice(0, 10), [records]);
   const cardClass =
-    'rounded-3xl border border-white/40 bg-white/85 p-6 shadow-card backdrop-blur-lg';
+    'rounded-3xl border border-white/40 bg-white/85 p-6 shadow-card backdrop-blur-lg dark:border-slate-800/70 dark:bg-slate-900/80 dark:shadow-[0_20px_50px_rgba(0,0,0,0.35)]';
   const fieldClasses =
-    'w-full rounded-2xl border border-slate-900/10 bg-white/90 px-4 py-3 text-base text-slate-900 shadow-sm outline-none transition focus:border-transparent focus:ring-2 focus:ring-blue-500/60 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70';
+    'w-full rounded-2xl border border-slate-900/10 bg-white/90 px-4 py-3 text-base text-slate-900 shadow-sm outline-none transition focus:border-transparent focus:ring-2 focus:ring-blue-500/60 focus:ring-offset-1 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-blue-400/60 dark:focus:ring-offset-slate-900';
   const primaryButtonClass =
-    'inline-flex items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-button transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70 disabled:shadow-none active:translate-y-0 active:shadow-buttonActive';
+    'inline-flex items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-button transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70 disabled:shadow-none active:translate-y-0 active:shadow-buttonActive dark:from-blue-500 dark:to-blue-400';
   const refreshButtonClass =
-    'inline-flex items-center justify-center rounded-2xl bg-slate-900/85 px-4 py-2 text-sm font-semibold text-white shadow-buttonMuted transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none active:translate-y-0';
+    'inline-flex items-center justify-center rounded-2xl bg-slate-900/85 px-4 py-2 text-sm font-semibold text-white shadow-buttonMuted transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none active:translate-y-0 dark:bg-slate-700/80 dark:text-slate-100 dark:focus-visible:outline-slate-200';
   const noticeClass =
-    'rounded-2xl border border-slate-200/70 bg-slate-100/80 px-4 py-3 text-center text-sm font-medium text-slate-600';
+    'rounded-2xl border border-slate-200/70 bg-slate-100/80 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:border-slate-800/70 dark:bg-slate-900/70 dark:text-slate-300';
 
   const fuelSummary = useMemo(() => {
     if (!gasApiIsConfigured || fuelRecords.length === 0) {
@@ -332,266 +330,42 @@ const App: React.FC = () => {
   const dialogStyle = { width: '100%', maxWidth: '480px', margin: '0 auto' };
 
   return (
-    <div className="relative min-h-screen pb-28">
+    <div className="relative min-h-screen pb-28 text-slate-900 dark:text-slate-100">
       <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-6 px-4 pb-20 pt-[calc(env(safe-area-inset-top,0)+2.5rem)] sm:px-6 sm:pt-[calc(env(safe-area-inset-top,0)+2rem)]">
-        <section className={cardClass}>
-          <h1 className="text-3xl font-bold text-slate-900">Авто обслуживание</h1>
-        </section>
+        <TitleCard className={cardClass} title="Тигран" />
 
-        <section className={cardClass}>
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">Kia Rio IV</h2>
-          </div>
-          <dl className="space-y-5">
-            <div className="flex items-center justify-between">
-              <dt className="text-base font-semibold text-slate-900">Госномер:</dt>
-              <dd className="text-base text-slate-900">М542ТМ 82</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-base font-semibold text-slate-900">VIN:</dt>
-              <dd className="text-base text-slate-900">Z94C241BBJR037440</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-base font-semibold text-slate-900">СТС:</dt>
-              <dd className="text-base text-slate-900">99 84 824631</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-base font-semibold text-slate-900">ПТС:</dt>
-              <dd className="text-base text-slate-900">82 РУ 074120</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-base font-semibold text-slate-900">Цвет кузова (кабины):</dt>
-              <dd className="text-base text-slate-900">Белый</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-base font-semibold text-slate-900">Объем двигателя (см³):</dt>
-              <dd className="text-base text-slate-900">1591</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-base font-semibold text-slate-900">Мощность (л.с.):</dt>
-              <dd className="text-base text-slate-900">123</dd>
-            </div>
-          </dl>
-        </section>
+        <FuelSection
+          className={cardClass}
+          noticeClass={noticeClass}
+          fuelSummary={fuelSummary}
+          gasApiIsConfigured={gasApiIsConfigured}
+          fuelLoading={fuelLoading}
+          fuelError={fuelError}
+          logoSrc={VTB}
+          formatNumber={formatNumber}
+        />
+        
+        <VehicleInfoCard className={cardClass} />
 
-        <section className={cardClass}>
-          <header className="mb-4 flex flex-wrap items-center gap-3">
-            <h2 className="flex-1 text-xl font-semibold text-slate-900">Последние записи</h2>
-            <button
-              type="button"
-              onClick={loadMaintenanceRecords}
-              disabled={loading || submitting || !apiIsConfigured}
-              className={refreshButtonClass}
-            >
-              {loading ? 'Обновляем…' : 'Обновить'}
-            </button>
-          </header>
-
-          {!apiIsConfigured && (
-            <div className={noticeClass}>
-              Укажите адрес сервера в файле .env (переменная REACT_APP_API_URL).
-            </div>
-          )}
-
-          {apiIsConfigured && loading && records.length === 0 && (
-            <div className={noticeClass}>Загружаем записи…</div>
-          )}
-
-          {apiIsConfigured && !loading && records.length === 0 && !error && (
-            <div className={noticeClass}>Пока нет данных об обслуживании.</div>
-          )}
-
-          {lastRecords.length > 0 && (
-            <ul className="mt-4 space-y-3">
-              {lastRecords.map(record => {
-                const intervalByProcedure: Record<string, number> = {
-                  'Замена масла': 6000,
-                  'Замена свечей': 20000,
-                  'Замена колодок': 40000
-                };
-
-                const interval = intervalByProcedure[record.procedure];
-                const nextMileage = typeof interval === 'number' ? record.mileage + interval : null;
-
-                return (
-                  <li
-                    key={record.id ?? `${record.date}-${record.procedure}-${record.mileage}`}
-                    className="grid gap-1 rounded-2xl border border-slate-900/10 bg-slate-50/90 p-4 shadow-sm"
-                  >
-                    <strong className="text-base font-semibold text-slate-900">
-                      {formatDisplayDate(record.date)}
-                    </strong>
-                    <div className="text-sm text-slate-700">
-                      <span>{record.procedure} - </span>
-                      <span className="font-semibold text-blue-900">
-                        {record.mileage.toLocaleString('ru-RU')} км
-                      </span>
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      <span>След. замена ~ </span>
-                      {nextMileage !== null ? (
-                        <span className="font-semibold text-blue-900">
-                          {nextMileage.toLocaleString('ru-RU')} км
-                        </span>
-                      ) : (
-                        <span>не задано</span>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        <section className={cardClass}>
-          <header className="mb-4 flex flex-wrap items-center gap-3">
-            <h2 className="flex-1 text-xl font-semibold text-slate-900">Расчёт топлива</h2>
-            <img src={VTB} alt="VTB" className="h-8 w-auto sm:h-6" />
-          </header>
-
-          {!gasApiIsConfigured && (
-            <div className={noticeClass}>
-              Укажите адрес сервера в файле .env (переменная REACT_APP_API_GAS).
-            </div>
-          )}
-
-          {gasApiIsConfigured && fuelError && (
-            <div className="rounded-2xl border border-red-400/45 bg-red-100/70 px-4 py-3 text-sm font-medium text-red-700">
-              {fuelError}
-            </div>
-          )}
-
-          {gasApiIsConfigured && fuelLoading && fuelRecords.length === 0 && !fuelError && (
-            <div className={noticeClass}>Загружаем данные по топливу…</div>
-          )}
-
-          {gasApiIsConfigured && !fuelLoading && !fuelError && !fuelSummary.hasData && (
-            <div className={noticeClass}>Пока нет данных о заправках.</div>
-          )}
-
-          {gasApiIsConfigured && fuelSummary.hasData && (
-            <div className="space-y-4">
-              <div className="space-y-3">
-                {fuelSummary.monthly.map(month => (
-                  <div
-                    key={month.key}
-                    className="rounded-2xl border border-slate-900/10 bg-white/70 p-4 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-base font-semibold text-slate-900">{month.label}</h3>
-                      <span
-                        className={`text-sm font-light ${month.fuelDiff < 0 ? 'text-red-600' : month.fuelDiff > 0 ? 'text-emerald-600' : 'text-slate-900'}`}
-                      >
-                        {formatNumber(month.approvedRate, 2)} л / 100 км
-                      </span>
-                    </div>
-                    <dl className="mt-3 space-y-2 text-sm text-slate-700">
-                      <div className="flex items-center justify-between">
-                        <dt className="font-medium text-slate-900">Пройдено км:</dt>
-                        <dd className="text-base font-semibold text-slate-900">
-                          {formatNumber(month.totalMileage, 0)} км
-                        </dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt className="font-medium text-slate-900">Норма топлива:</dt>
-                        <dd className="text-base font-light text-slate-900">
-                          {formatNumber(month.fuelNorm)} л
-                        </dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt className="font-medium text-slate-900">Заправлено:</dt>
-                        <dd className="text-base font-semibold text-slate-900">
-                          {formatNumber(month.totalLiters)} л
-                        </dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt className="font-medium text-slate-900">Сумма заправки:</dt>
-                        <dd className="text-base font-light text-slate-900">
-                          {formatNumber(month.fuelCost, 2)} ₽
-                        </dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt className="font-medium text-slate-900">Разница:</dt>
-                        <dd
-                          className={`text-base font-semibold ${month.fuelDiff < 0 ? 'text-red-600' : month.fuelDiff > 0 ? 'text-emerald-600' : 'text-slate-900'}`}
-                        >
-                          {month.diffLabel}
-                        </dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt className="font-medium text-slate-900">Компенсация ГСМ:</dt>
-                        <dd className="text-base font-semibold text-slate-900">
-                          {formatNumber(month.compensation, 0)} ₽
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-2xl border border-slate-900/10 bg-slate-50/70 px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-base font-semibold text-green-900">Итог за период</span>
-                </div>
-                <dl className="mt-3 space-y-2 text-sm text-slate-700">
-                  <div className="flex items-center justify-between">
-                    <dt className="font-medium text-slate-900">Пройдено км:</dt>
-                    <dd className="text-base font-semibold text-slate-900">
-                      {formatNumber(fuelSummary.totals.totalMileage, 0)} км
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="font-medium text-slate-900">Заправлено:</dt>
-                    <dd className="text-base font-semibold text-slate-900">
-                      {formatNumber(fuelSummary.totals.totalLiters)} л
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="font-medium text-slate-900">Сумма заправки:</dt>
-                    <dd className="text-base font-semibold text-slate-900">
-                      {formatNumber(fuelSummary.totals.totalFuelCost, 2)} ₽
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="font-medium text-slate-900">Компенсация ГСМ:</dt>
-                    <dd className="text-base font-semibold text-slate-900">
-                      {formatNumber(fuelSummary.totals.totalCompensation, 0)} ₽
-                    </dd>
-                  </div>
-                </dl>
-                <div className='mt-4'>
-                  <span
-                    className={`text-base font-semibold ${fuelSummary.totals.fuelDiff < 0 ? 'text-red-600' : fuelSummary.totals.fuelDiff > 0 ? 'text-emerald-600' : 'text-slate-900'}`}
-                  >
-                    Перерасход топлива на {fuelSummary.totals.diffLabel}
-                </span>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
+        <MaintenanceSection
+          className={cardClass}
+          noticeClass={noticeClass}
+          refreshButtonClass={refreshButtonClass}
+          lastRecords={lastRecords}
+          recordsCount={records.length}
+          loading={loading}
+          submitting={submitting}
+          apiIsConfigured={apiIsConfigured}
+          onRefresh={loadMaintenanceRecords}
+        />
       </main>
 
-      <nav
-  className="fixed bottom-4 left-1/2 flex w-3/4 -translate-x-1/2 items-center justify-between rounded-full border border-white/60 bg-white/10 px-6 py-3 shadow-card backdrop-blur-lg">
-        <button
-          type="button"
-          onClick={() => setMaintenanceDialogOpen(true)}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-blue-500 text-white shadow-button transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-          aria-label="Открыть форму автообслуживания"
-        >
-          <i className="pi pi-car text-xl" />
-        </button>
+      {salaryPageOpen && <SalaryPage onClose={() => setSalaryPageOpen(false)} />}
 
-        <button
-          type="button"
-          onClick={() => setFuelDialogOpen(true)}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/90 text-white shadow-buttonMuted transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-          aria-label="Открыть расчёт расхода топлива"
-        >
-          <i className="pi pi-calculator text-xl" />
-        </button>
-      </nav>
+      <BottomNav
+        onOpenMaintenance={() => setMaintenanceDialogOpen(true)}
+        onOpenSalary={() => setSalaryPageOpen(true)}
+      />
 
       <Dialog
         header="Авто обслуживание"
@@ -601,7 +375,8 @@ const App: React.FC = () => {
         onHide={() => setMaintenanceDialogOpen(false)}
         style={dialogStyle}
         className="p-0"
-        contentClassName=""
+        headerClassName="bg-white/90 text-slate-900 dark:bg-slate-900/90 dark:text-slate-100"
+        contentClassName="bg-white/90 text-slate-900 dark:bg-slate-900/90 dark:text-slate-100"
       >
         <MaintenanceForm
           sectionClassName={`mb-4`}
@@ -617,24 +392,6 @@ const App: React.FC = () => {
         />
       </Dialog>
 
-      <Dialog
-        header="Расчёт топлива"
-        visible={fuelDialogOpen}
-        position="bottom"
-        modal
-        onHide={() => setFuelDialogOpen(false)}
-        style={dialogStyle}
-        className="p-0"
-        contentClassName=""
-      >
-        <FuelCalculatorForm
-          sectionClassName={`mb-4`}
-          fieldClassName={fieldClasses}
-          buttonClassName={primaryButtonClass}
-          apiIsConfigured={gasApiIsConfigured}
-          onSubmitted={loadFuelRecords}
-        />
-      </Dialog>
     </div>
   );
 };

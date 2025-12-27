@@ -25,3 +25,14 @@ export type FuelRecordInput = {
   liters?: number | null;
   fuelCost?: number | null;
 };
+
+export type SalaryEntry = {
+  date: string;
+  baseSalary: number;
+  weekendPay: number;
+};
+
+export type SalaryMonth = {
+  month: string;
+  entries: SalaryEntry[];
+};
