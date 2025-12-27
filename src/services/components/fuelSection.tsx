@@ -37,7 +37,6 @@ type FuelSectionProps = {
   gasApiIsConfigured: boolean;
   fuelLoading: boolean;
   fuelError: string | null;
-  logoSrc: string;
   formatNumber: (value: number, maximumFractionDigits?: number) => string;
 };
 
@@ -48,7 +47,6 @@ const FuelSection: React.FC<FuelSectionProps> = ({
   gasApiIsConfigured,
   fuelLoading,
   fuelError,
-  logoSrc,
   formatNumber
 }) => {
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
@@ -59,7 +57,12 @@ const FuelSection: React.FC<FuelSectionProps> = ({
         <h2 className="flex-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
           Расчёт топлива
         </h2>
-        <img src={logoSrc} alt="VTB" className="h-8 w-auto sm:h-6 dark:opacity-90" />
+
+        <span
+              className={`text-base font-semibold ${fuelSummary.totals.fuelDiff < 0 ? 'text-red-600 dark:text-red-400' : fuelSummary.totals.fuelDiff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
+            >
+              перерасход {fuelSummary.totals.diffLabel}
+            </span>
       </header>
 
     {!gasApiIsConfigured && (
@@ -208,13 +211,6 @@ const FuelSection: React.FC<FuelSectionProps> = ({
               </dd>
             </div>
           </dl>
-          <div className="mt-4">
-            <span
-              className={`text-base font-semibold ${fuelSummary.totals.fuelDiff < 0 ? 'text-red-600 dark:text-red-400' : fuelSummary.totals.fuelDiff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
-            >
-              Перерасход топлива на {fuelSummary.totals.diffLabel}
-            </span>
-          </div>
         </div>
       </div>
     )}

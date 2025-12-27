@@ -332,7 +332,8 @@ const App: React.FC = () => {
   return (
     <div className="relative min-h-screen pb-28 text-slate-900 dark:text-slate-100">
       <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-6 px-4 pb-20 pt-[calc(env(safe-area-inset-top,0)+2.5rem)] sm:px-6 sm:pt-[calc(env(safe-area-inset-top,0)+2rem)]">
-        <TitleCard className={cardClass} title="Тигран" />
+        <TitleCard
+          logoSrc={VTB} className={cardClass} title="Тигран" />
 
         <FuelSection
           className={cardClass}
@@ -341,10 +342,9 @@ const App: React.FC = () => {
           gasApiIsConfigured={gasApiIsConfigured}
           fuelLoading={fuelLoading}
           fuelError={fuelError}
-          logoSrc={VTB}
           formatNumber={formatNumber}
         />
-        
+
         <VehicleInfoCard className={cardClass} />
 
         <MaintenanceSection
