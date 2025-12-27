@@ -40,7 +40,9 @@ function formatNumber(value: number, maximumFractionDigits = 1): string {
 }
 
 function getFuelConsumptionRate(date?: string): number {
-  if (date && FUEL_CONSUMPTION_RATE_DATES.has(date)) {
+  const normalizedDate = date ? date.trim().slice(0, 10) : '';
+
+  if (normalizedDate && FUEL_CONSUMPTION_RATE_DATES.has(normalizedDate)) {
     return FUEL_CONSUMPTION_RATE * (1 + FUEL_CONSUMPTION_RATE_INCREASE);
   }
 
