@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/maintenance/static/css/main.4a4f185e.css",
-    "main.js": "/maintenance/static/js/main.37a4437d.js",
+    "main.css": "/maintenance/static/css/main.44d3ea0d.css",
+    "main.js": "/maintenance/static/js/main.cc77d92b.js",
     "static/media/InterVariable-Italic.woff2": "/maintenance/static/media/InterVariable-Italic.e295f70fe3e2df296c7b.woff2",
     "static/media/InterVariable.woff2": "/maintenance/static/media/InterVariable.a0e477f2f1f9d2376fde.woff2",
     "static/media/primeicons.svg": "/maintenance/static/media/primeicons.6ed59f962963a4a73af2.svg",
@@ -10,12 +10,13 @@
     "static/media/primeicons.ttf": "/maintenance/static/media/primeicons.a5c2a53d1ff7a9ff5933.ttf",
     "static/media/primeicons.woff2": "/maintenance/static/media/primeicons.024b32cc7bf399b1a847.woff2",
     "service-worker.js": "/maintenance/service-worker.js",
+    "static/media/VTB_Logo.png": "/maintenance/static/media/VTB_Logo.5e47f629e564430a68c0.png",
     "index.html": "/maintenance/index.html",
-    "main.4a4f185e.css.map": "/maintenance/static/css/main.4a4f185e.css.map",
-    "main.37a4437d.js.map": "/maintenance/static/js/main.37a4437d.js.map"
+    "main.44d3ea0d.css.map": "/maintenance/static/css/main.44d3ea0d.css.map",
+    "main.cc77d92b.js.map": "/maintenance/static/js/main.cc77d92b.js.map"
   },
   "entrypoints": [
-    "static/css/main.4a4f185e.css",
-    "static/js/main.37a4437d.js"
+    "static/css/main.44d3ea0d.css",
+    "static/js/main.cc77d92b.js"
   ]
 }
