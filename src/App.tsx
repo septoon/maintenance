@@ -1,8 +1,6 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import MaintenanceForm, { MaintenanceFormValues } from './services/components/maintenanceForm';
-import ProfilePage from './services/components/profilePage';
-import SalaryPage from './services/components/salaryPage';
 import TitleCard from './services/components/titleCard';
 import VehicleInfoCard from './services/components/vehicleInfoCard';
 import MaintenanceSection from './services/components/maintenanceSection';
@@ -12,6 +10,7 @@ import { createRecord, fetchRecords } from './services/maintenanceApi';
 import { fetchFuelRecords } from './services/fuelApi';
 import { FuelRecord, MaintenanceRecord } from './types';
 import VTB from './assets/VTB_Logo.png';
+import { useNavigate } from 'react-router-dom';
 
 const initialFormState: MaintenanceFormValues = {
   date: '',
@@ -92,8 +91,6 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
-  const [salaryPageOpen, setSalaryPageOpen] = useState(false);
-  const [profilePageOpen, setProfilePageOpen] = useState(false);
 
   const [fuelRecords, setFuelRecords] = useState<FuelRecord[]>([]);
   const [fuelLoading, setFuelLoading] = useState(false);
@@ -101,6 +98,7 @@ const App: React.FC = () => {
 
   const apiIsConfigured = Boolean(process.env.REACT_APP_API_URL);
   const gasApiIsConfigured = Boolean(process.env.REACT_APP_API_GAS);
+  const navigate = useNavigate();
 
   const loadMaintenanceRecords = useCallback(async () => {
     if (!apiIsConfigured) {
@@ -157,16 +155,6 @@ const App: React.FC = () => {
   useEffect(() => {
     loadFuelRecords();
   }, [loadFuelRecords]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (!profilePageOpen && !salaryPageOpen) return;
-    const { overflow } = document.body.style;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = overflow;
-    };
-  }, [profilePageOpen, salaryPageOpen]);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
@@ -348,7 +336,7 @@ const App: React.FC = () => {
           logoSrc={VTB}
           className={cardClass}
           title="Тигран"
-          onTitleClick={() => setProfilePageOpen(true)}
+          onTitleClick={() => navigate('/profile')}
         />
 
         <FuelSection
@@ -376,13 +364,9 @@ const App: React.FC = () => {
         />
       </main>
 
-      {profilePageOpen && <ProfilePage onClose={() => setProfilePageOpen(false)} />}
-
-      {salaryPageOpen && <SalaryPage onClose={() => setSalaryPageOpen(false)} />}
-
       <BottomNav
         onOpenMaintenance={() => setMaintenanceDialogOpen(true)}
-        onOpenSalary={() => setSalaryPageOpen(true)}
+        onOpenSalary={() => navigate('/salary')}
       />
 
       <Dialog
