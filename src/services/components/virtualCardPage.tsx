@@ -101,25 +101,25 @@ const VirtualCardPage: React.FC<VirtualCardPageProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black text-white">
+    <div className="fixed inset-0 z-[60] bg-slate-100 text-slate-900 dark:bg-black dark:text-white">
       <div className="mx-auto flex h-full max-w-xl flex-col px-4 pb-[calc(env(safe-area-inset-bottom,0)+1.5rem)] pt-[calc(env(safe-area-inset-top,0)+.2rem)] sm:px-6">
         <header className="relative flex items-center py-2">
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center text-white"
+            className="flex h-9 w-9 items-center justify-center text-slate-900 dark:text-white"
             aria-label="Вернуться назад"
           >
             <i className="pi pi-chevron-left text-lg" />
           </button>
-          <h2 className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-semibold text-white">
+          <h2 className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-semibold text-slate-900 dark:text-white">
             Виртуальная визитка
           </h2>
         </header>
 
         <div className="mt-6 flex-1 space-y-6 overflow-y-auto pb-6">
           <section className="flex flex-col items-center gap-4">
-            <div className="rounded-3xl bg-white p-4 shadow-xl">
+            <div className="rounded-3xl bg-white p-4 shadow-xl dark:bg-white">
               {qrUrl ? (
                 <img src={qrUrl} alt="QR-код визитки" className="h-60 w-60" />
               ) : (
@@ -128,125 +128,135 @@ const VirtualCardPage: React.FC<VirtualCardPageProps> = ({ onClose }) => {
                 </div>
               )}
             </div>
-            <p className="max-w-sm text-center text-sm text-slate-400">
+            <p className="max-w-sm text-center text-sm text-slate-500 dark:text-slate-400">
               Дайте отсканировать этот QR-код тому, с кем хотите поделиться контактами.
             </p>
           </section>
 
-          <section className="rounded-3xl bg-slate-900/90 p-5 shadow-lg">
-            <div className="text-lg font-semibold text-white">{fullName}</div>
+          <section className="rounded-3xl border border-slate-200/70 bg-white/90 p-5 shadow-lg dark:border-white/10 dark:bg-slate-900/90">
+            <div className="text-lg font-semibold text-slate-900 dark:text-white">
+              {fullName}
+            </div>
 
             {!isEditing && (
-              <div className="mt-4 space-y-4 text-sm text-slate-300">
+              <div className="mt-4 space-y-4 text-sm text-slate-600 dark:text-slate-300">
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-slate-500">
+                  <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                     Должность
                   </div>
-                  <div className="mt-1 text-base text-white">{cardData.title}</div>
+                  <div className="mt-1 text-base text-slate-900 dark:text-white">
+                    {cardData.title}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-slate-500">
+                  <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                     Подразделение
                   </div>
-                  <div className="mt-1 text-base text-white">{cardData.department}</div>
+                  <div className="mt-1 text-base text-slate-900 dark:text-white">
+                    {cardData.department}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-slate-500">
+                  <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                     Личный телефон
                   </div>
-                  <div className="mt-1 text-base text-white">{cardData.phone}</div>
+                  <div className="mt-1 text-base text-slate-900 dark:text-white">
+                    {cardData.phone}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-slate-500">
+                  <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                     Рабочая почта
                   </div>
-                  <div className="mt-1 text-base text-white">{cardData.email}</div>
+                  <div className="mt-1 text-base text-slate-900 dark:text-white">
+                    {cardData.email}
+                  </div>
                 </div>
               </div>
             )}
 
             {isEditing && (
-              <div className="mt-4 space-y-4 text-sm text-slate-300">
+              <div className="mt-4 space-y-4 text-sm text-slate-600 dark:text-slate-300">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="space-y-2">
-                    <span className="text-xs uppercase tracking-wide text-slate-500">
+                    <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                       Фамилия
                     </span>
                     <input
                       value={cardData.lastName}
                       onChange={handleChange('lastName')}
-                      className="w-full rounded-xl border border-white/10 bg-slate-800/80 px-3 py-2 text-white"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                     />
                   </label>
                   <label className="space-y-2">
-                    <span className="text-xs uppercase tracking-wide text-slate-500">
+                    <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                       Имя
                     </span>
                     <input
                       value={cardData.firstName}
                       onChange={handleChange('firstName')}
-                      className="w-full rounded-xl border border-white/10 bg-slate-800/80 px-3 py-2 text-white"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                     />
                   </label>
                 </div>
                 <label className="space-y-2">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">
+                  <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                     Отчество
                   </span>
                   <input
                     value={cardData.middleName}
                     onChange={handleChange('middleName')}
-                    className="w-full rounded-xl border border-white/10 bg-slate-800/80 px-3 py-2 text-white"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">
+                  <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                     Организация
                   </span>
                   <input
                     value={cardData.organization}
                     onChange={handleChange('organization')}
-                    className="w-full rounded-xl border border-white/10 bg-slate-800/80 px-3 py-2 text-white"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">
+                  <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                     Должность
                   </span>
                   <input
                     value={cardData.title}
                     onChange={handleChange('title')}
-                    className="w-full rounded-xl border border-white/10 bg-slate-800/80 px-3 py-2 text-white"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">
+                  <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                     Подразделение
                   </span>
                   <input
                     value={cardData.department}
                     onChange={handleChange('department')}
-                    className="w-full rounded-xl border border-white/10 bg-slate-800/80 px-3 py-2 text-white"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">
+                  <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                     Личный телефон
                   </span>
                   <input
                     value={cardData.phone}
                     onChange={handleChange('phone')}
-                    className="w-full rounded-xl border border-white/10 bg-slate-800/80 px-3 py-2 text-white"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="text-xs uppercase tracking-wide text-slate-500">
+                  <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
                     Рабочая почта
                   </span>
                   <input
                     value={cardData.email}
                     onChange={handleChange('email')}
-                    className="w-full rounded-xl border border-white/10 bg-slate-800/80 px-3 py-2 text-white"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                   />
                 </label>
               </div>
@@ -255,7 +265,7 @@ const VirtualCardPage: React.FC<VirtualCardPageProps> = ({ onClose }) => {
             <button
               type="button"
               onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
-              className="mt-6 w-full rounded-2xl bg-slate-800/90 px-4 py-3 text-center text-base font-semibold text-white shadow-inner transition hover:bg-slate-800"
+              className="mt-6 w-full rounded-2xl bg-slate-900 px-4 py-3 text-center text-base font-semibold text-white shadow-inner transition hover:bg-slate-800 dark:bg-slate-800/90"
             >
               {isEditing ? 'Сохранить визитку' : 'Настроить визитку'}
             </button>

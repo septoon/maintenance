@@ -108,7 +108,7 @@ const FuelSection: React.FC<FuelSectionProps> = ({
                     <span
                       className={`text-sm font-light ${month.fuelDiff < 0 ? 'text-red-600 dark:text-red-400' : month.fuelDiff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
                     >
-                      {formatNumber(month.approvedRate, 2)} л / 100 км
+                      {formatNumber(month.approvedRate, 1)} л / 100 км
                     </span>
                     <i
                       className={`pi ${isExpanded ? 'pi-chevron-up' : 'pi-chevron-down'} text-slate-600 dark:text-slate-300`}
