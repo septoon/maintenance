@@ -10,7 +10,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-100/95 backdrop-blur-sm dark:bg-slate-950/95">
-      <div className="mx-auto flex h-full max-w-xl flex-col px-4 pb-[calc(env(safe-area-inset-bottom,0)+1.5rem)] pt-[calc(env(safe-area-inset-top,0)+.2rem)] sm:px-6">
+      <div className="mx-auto flex h-full max-w-xl flex-col px-4 pb-0 pt-[calc(env(safe-area-inset-top,0)+.2rem)] sm:px-6">
         <header className="relative flex items-center py-2">
           <button
             type="button"
