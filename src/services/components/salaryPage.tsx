@@ -77,6 +77,18 @@ function formatDateShort(value: string): string {
   return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
 }
 
+function formatMonthCount(value: number): string {
+  const mod10 = value % 10;
+  const mod100 = value % 100;
+  if (mod10 === 1 && mod100 !== 11) {
+    return 'месяц';
+  }
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+    return 'месяца';
+  }
+  return 'месяцев';
+}
+
 function formatCurrency(value: number, maximumFractionDigits = 2): string {
   return value.toLocaleString('ru-RU', {
     minimumFractionDigits: maximumFractionDigits,
@@ -99,6 +111,7 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(SALARY_VISIBILITY_KEY) === 'true';
   });
+  const [showAllTime, setShowAllTime] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
 
@@ -205,10 +218,36 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
     };
   }, [orderedMonths]);
 
-  const displayAmount = latestSummary
+  const allTimeSummary = useMemo(() => {
+    if (orderedMonths.length === 0) return null;
+    const entries = orderedMonths.flatMap(month => month.entries);
+    if (entries.length === 0) return null;
+    const dates = entries
+      .map(entry => entry.date)
+      .filter(date => Boolean(date))
+      .sort((a, b) => a.localeCompare(b));
+    if (dates.length === 0) return null;
+
+    const totalNet = entries.reduce((acc, entry) => {
+      const tax = Math.floor(entry.baseSalary * TAX_RATE);
+      return acc + entry.baseSalary - tax + entry.weekendPay;
+    }, 0);
+
+    return {
+      monthLabel: `${orderedMonths.length} ${formatMonthCount(orderedMonths.length)}`,
+      periodLabel: `${formatDateShort(dates[0])} - ${formatDateShort(
+        dates[dates.length - 1]
+      )}`,
+      amount: totalNet
+    };
+  }, [orderedMonths]);
+
+  const activeSummary = showAllTime ? allTimeSummary ?? latestSummary : latestSummary;
+
+  const displayAmount = activeSummary
     ? isAmountHidden
-      ? `${formatCurrency(latestSummary.amount).replace(/\S/g, '*')} ₽`
-      : `${formatCurrency(latestSummary.amount)} ₽`
+      ? `${formatCurrency(activeSummary.amount).replace(/\S/g, '*')} ₽`
+      : `${formatCurrency(activeSummary.amount)} ₽`
     : '';
 
   return (
@@ -247,16 +286,16 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
             </div>
           )}
 
-          {apiIsConfigured && !loading && !error && !latestSummary && (
+          {apiIsConfigured && !loading && !error && !activeSummary && (
             <div className="rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-300">
               Пока нет данных по зарплате.
             </div>
           )}
 
-          {apiIsConfigured && !error && latestSummary && (
+          {apiIsConfigured && !error && activeSummary && (
             <section className="rounded-[28px] bg-gradient-to-br from-blue-600 via-blue-600 to-blue-500 p-5 shadow-[0_18px_45px_rgba(37,99,235,0.4)]">
               <div className="text-sm font-semibold text-white/80">
-                Перечислено за {latestSummary.monthLabel}
+                Перечислено за {activeSummary.monthLabel}
               </div>
               <div className="mt-3 flex items-center justify-between gap-4 text-white/80">
                 <div className="text-4xl font-semibold tracking-tight">
@@ -277,13 +316,14 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
                 </button>
               </div>
               <div className="mt-2 text-sm text-blue-100">
-                Период начисления {latestSummary.periodLabel}
+                Период начисления {activeSummary.periodLabel}
               </div>
               <button
                 type="button"
+                onClick={() => setShowAllTime(prev => !prev)}
                 className="mt-4 w-full rounded-2xl bg-slate-900/30 px-4 py-3 text-center text-base font-semibold text-white/90 shadow-inner transition hover:bg-slate-900/40"
               >
-                Подробнее
+                {showAllTime ? 'За последний месяц' : 'За все время'}
               </button>
             </section>
           )}
