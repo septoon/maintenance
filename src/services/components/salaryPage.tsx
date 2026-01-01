@@ -212,43 +212,43 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
     : '';
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950 text-white">
-      <div className="mx-auto flex h-full max-w-xl flex-col px-4 pb-[calc(env(safe-area-inset-bottom,0)+1.5rem)] pt-[calc(env(safe-area-inset-top,0)+1.5rem)] sm:px-6">
+    <div className="fixed inset-0 z-50 bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-white">
+      <div className="mx-auto flex h-full max-w-xl flex-col px-4 pb-[calc(env(safe-area-inset-bottom,0)+1.5rem)] pt-[calc(env(safe-area-inset-top,0)+.2rem)] sm:px-6">
         <header className="relative flex items-center py-2">
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center text-white"
+            className="flex h-9 w-9 items-center justify-center text-slate-900 dark:text-white"
             aria-label="Вернуться назад"
           >
             <i className="pi pi-chevron-left text-lg" />
           </button>
-          <h2 className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-xl font-semibold text-white">
+          <h2 className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-xl font-semibold text-slate-900 dark:text-white">
             Зарплата
           </h2>
         </header>
 
         <div className="mt-6 flex-1 space-y-6 overflow-y-auto pb-6">
           {!apiIsConfigured && (
-            <div className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-center text-sm font-medium text-slate-300">
+            <div className="rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-300">
               Укажите адрес сервера в .env (REACT_APP_API_SALARY).
             </div>
           )}
 
           {apiIsConfigured && error && (
-            <div className="rounded-2xl border border-rose-500/40 bg-rose-950/60 px-4 py-3 text-sm font-medium text-rose-100">
+            <div className="rounded-2xl border border-rose-300/60 bg-rose-100/80 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-500/40 dark:bg-rose-950/60 dark:text-rose-100">
               {error}
             </div>
           )}
 
           {apiIsConfigured && loading && months.length === 0 && !error && (
-            <div className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-center text-sm font-medium text-slate-300">
+            <div className="rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-300">
               Загружаем данные по зарплате…
             </div>
           )}
 
           {apiIsConfigured && !loading && !error && !latestSummary && (
-            <div className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-center text-sm font-medium text-slate-300">
+            <div className="rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-300">
               Пока нет данных по зарплате.
             </div>
           )}
@@ -258,7 +258,7 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
               <div className="text-sm font-semibold text-white/80">
                 Перечислено за {latestSummary.monthLabel}
               </div>
-              <div className="mt-3 flex items-center justify-between gap-4">
+              <div className="mt-3 flex items-center justify-between gap-4 text-white/80">
                 <div className="text-4xl font-semibold tracking-tight">
                   {displayAmount}
                 </div>
@@ -289,8 +289,10 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
           )}
 
           {apiIsConfigured && !error && orderedMonths.length > 0 && (
-            <section className="rounded-3xl bg-slate-900/85 p-5 shadow-lg">
-              <div className="text-lg font-semibold text-white">Все периоды</div>
+            <section className="rounded-3xl border border-slate-200/70 bg-white/90 p-5 shadow-lg dark:border-white/10 dark:bg-slate-900/85">
+              <div className="text-lg font-semibold text-slate-900 dark:text-white">
+                Все периоды
+              </div>
               <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
                 {years.map(year => {
                   const isActive = year === selectedYear;
@@ -301,8 +303,8 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
                       onClick={() => setSelectedYear(year)}
                       className={`shrink-0 rounded-xl border px-4 py-2 text-sm font-semibold transition ${
                         isActive
-                          ? 'border-blue-400 bg-blue-500/15 text-blue-200'
-                          : 'border-white/10 bg-slate-800/70 text-slate-300 hover:bg-slate-800'
+                          ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-500/15 dark:text-blue-200'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-800/70 dark:text-slate-300 dark:hover:bg-slate-800'
                       }`}
                     >
                       {year}
@@ -313,7 +315,7 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
 
               <div className="mt-4 space-y-3">
                 {yearMonths.length === 0 && selectedYear && (
-                  <div className="text-sm text-slate-400">
+                  <div className="text-sm text-slate-500 dark:text-slate-400">
                     Нет данных за {selectedYear}.
                   </div>
                 )}
@@ -342,7 +344,7 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
                   return (
                     <div
                       key={month.month}
-                      className="rounded-2xl bg-slate-800/80 px-4 py-4 text-white shadow-sm"
+                      className="rounded-2xl border border-slate-200/70 bg-white/90 px-4 py-4 text-slate-900 shadow-sm dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                     >
                       <button
                         type="button"
@@ -369,52 +371,56 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
                             return (
                               <div
                                 key={`${month.month}-${entry.date}`}
-                                className="rounded-2xl border border-white/10 bg-slate-900/80 p-4"
+                                className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/80"
                               >
-                                <div className="text-sm font-semibold text-white">
+                                <div className="text-sm font-semibold text-slate-900 dark:text-white">
                                   {formatEntryDate(entry.date)}
                                 </div>
-                                <dl className="mt-3 space-y-2 text-sm text-slate-200">
+                                <dl className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-200">
                                   <div className="flex items-center justify-between">
-                                    <dt className="text-slate-300">Оклад</dt>
-                                    <dd className="font-semibold text-white">
+                                    <dt className="text-slate-500 dark:text-slate-300">
+                                      Оклад
+                                    </dt>
+                                    <dd className="font-semibold text-slate-900 dark:text-white">
                                       {formatCurrency(entry.baseSalary)} ₽
                                     </dd>
                                   </div>
                                   {entry.weekendPay > 0 && (
                                     <>
                                       <div className="flex items-center justify-between">
-                                        <dt className="max-w-[65%] text-slate-300">
+                                        <dt className="max-w-[65%] text-slate-500 dark:text-slate-300">
                                           Оплата за работу в выходной/ праздничный
                                           день
                                         </dt>
-                                        <dd className="font-semibold text-white">
+                                        <dd className="font-semibold text-slate-900 dark:text-white">
                                           {formatCurrency(weekendPart)} ₽
                                         </dd>
                                       </div>
                                       <div className="flex items-center justify-between">
-                                        <dt className="max-w-[65%] text-slate-300">
+                                        <dt className="max-w-[65%] text-slate-500 dark:text-slate-300">
                                           Доплата за работу в выходной/ праздничный
                                           день
                                         </dt>
-                                        <dd className="font-semibold text-white">
+                                        <dd className="font-semibold text-slate-900 dark:text-white">
                                           {formatCurrency(weekendPart)} ₽
                                         </dd>
                                       </div>
                                     </>
                                   )}
                                   <div className="flex items-center justify-between">
-                                    <dt className="max-w-[65%] text-slate-300">
+                                    <dt className="max-w-[65%] text-slate-500 dark:text-slate-300">
                                       Налог на доходы физических лиц
                                     </dt>
-                                    <dd className="font-semibold text-rose-300">
+                                    <dd className="font-semibold text-rose-500 dark:text-rose-300">
                                       - {formatRubles(tax)} ₽
                                     </dd>
                                   </div>
-                                  <div className="h-px bg-white/10" />
+                                  <div className="h-px bg-slate-200/80 dark:bg-white/10" />
                                   <div className="flex items-center justify-between">
-                                    <dt className="text-slate-200">Выплата</dt>
-                                    <dd className="font-semibold text-emerald-300">
+                                    <dt className="text-slate-700 dark:text-slate-200">
+                                      Выплата
+                                    </dt>
+                                    <dd className="font-semibold text-emerald-600 dark:text-emerald-300">
                                       {formatCurrency(payout)} ₽
                                     </dd>
                                   </div>
@@ -423,27 +429,33 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
                             );
                           })}
 
-                          <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
-                            <div className="text-sm font-semibold text-white">
+                          <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/80">
+                            <div className="text-sm font-semibold text-slate-900 dark:text-white">
                               Итог
                             </div>
-                            <dl className="mt-3 space-y-2 text-sm text-slate-200">
+                            <dl className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-200">
                               <div className="flex items-center justify-between">
-                                <dt className="text-slate-300">Начислено</dt>
-                                <dd className="font-semibold text-white">
+                                <dt className="text-slate-500 dark:text-slate-300">
+                                  Начислено
+                                </dt>
+                                <dd className="font-semibold text-slate-900 dark:text-white">
                                   {formatCurrency(totalGross)} ₽
                                 </dd>
                               </div>
                               <div className="flex items-center justify-between">
-                                <dt className="text-slate-300">Удержано</dt>
-                                <dd className="font-semibold text-rose-300">
+                                <dt className="text-slate-500 dark:text-slate-300">
+                                  Удержано
+                                </dt>
+                                <dd className="font-semibold text-rose-500 dark:text-rose-300">
                                   - {formatRubles(totalTax)} ₽
                                 </dd>
                               </div>
-                              <div className="h-px bg-white/10" />
+                              <div className="h-px bg-slate-200/80 dark:bg-white/10" />
                               <div className="flex items-center justify-between">
-                                <dt className="text-slate-200">Перечислено</dt>
-                                <dd className="font-semibold text-emerald-300">
+                                <dt className="text-slate-700 dark:text-slate-200">
+                                  Перечислено
+                                </dt>
+                                <dd className="font-semibold text-emerald-600 dark:text-emerald-300">
                                   {formatCurrency(totalNet)} ₽
                                 </dd>
                               </div>
