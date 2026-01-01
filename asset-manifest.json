@@ -1,6 +1,6 @@
 {
   "files": {
-    "main.css": "/maintenance/static/css/main.b47d31d1.css",
+    "main.css": "/maintenance/static/css/main.0550154c.css",
     "main.js": "/maintenance/static/js/main.5ec5b0e1.js",
     "static/media/InterVariable-Italic.woff2": "/maintenance/static/media/InterVariable-Italic.e295f70fe3e2df296c7b.woff2",
     "static/media/InterVariable.woff2": "/maintenance/static/media/InterVariable.a0e477f2f1f9d2376fde.woff2",
@@ -12,11 +12,11 @@
     "service-worker.js": "/maintenance/service-worker.js",
     "static/media/VTB_Logo.png": "/maintenance/static/media/VTB_Logo.5e47f629e564430a68c0.png",
     "index.html": "/maintenance/index.html",
-    "main.b47d31d1.css.map": "/maintenance/static/css/main.b47d31d1.css.map",
+    "main.0550154c.css.map": "/maintenance/static/css/main.0550154c.css.map",
     "main.5ec5b0e1.js.map": "/maintenance/static/js/main.5ec5b0e1.js.map"
   },
   "entrypoints": [
-    "static/css/main.b47d31d1.css",
+    "static/css/main.0550154c.css",
     "static/js/main.5ec5b0e1.js"
   ]
 }
