@@ -41,7 +41,7 @@ const MaintenanceSection: React.FC<MaintenanceSectionProps> = ({
 
   return (
     <section className={className}>
-      <header className="mb-4 flex flex-wrap items-center gap-3">
+      <header className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => setIsExpanded(prev => !prev)}
