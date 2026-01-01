@@ -1,6 +1,7 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import MaintenanceForm, { MaintenanceFormValues } from './services/components/maintenanceForm';
+import ProfilePage from './services/components/profilePage';
 import SalaryPage from './services/components/salaryPage';
 import TitleCard from './services/components/titleCard';
 import VehicleInfoCard from './services/components/vehicleInfoCard';
@@ -92,6 +93,7 @@ const App: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
   const [salaryPageOpen, setSalaryPageOpen] = useState(false);
+  const [profilePageOpen, setProfilePageOpen] = useState(false);
 
   const [fuelRecords, setFuelRecords] = useState<FuelRecord[]>([]);
   const [fuelLoading, setFuelLoading] = useState(false);
@@ -333,7 +335,11 @@ const App: React.FC = () => {
     <div className="relative min-h-screen pb-28 text-slate-900 dark:text-slate-100">
       <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-6 px-4 pb-20 pt-[calc(env(safe-area-inset-top,0)+2.5rem)] sm:px-6 sm:pt-[calc(env(safe-area-inset-top,0)+2rem)]">
         <TitleCard
-          logoSrc={VTB} className={cardClass} title="Тигран" />
+          logoSrc={VTB}
+          className={cardClass}
+          title="Тигран"
+          onTitleClick={() => setProfilePageOpen(true)}
+        />
 
         <FuelSection
           className={cardClass}
@@ -359,6 +365,8 @@ const App: React.FC = () => {
           onRefresh={loadMaintenanceRecords}
         />
       </main>
+
+      {profilePageOpen && <ProfilePage onClose={() => setProfilePageOpen(false)} />}
 
       {salaryPageOpen && <SalaryPage onClose={() => setSalaryPageOpen(false)} />}
 
