@@ -11,7 +11,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onClose }) => {
   return (
     <div className="fixed inset-0 z-50 bg-slate-100/95 backdrop-blur-sm dark:bg-slate-950/95">
       <div className="mx-auto flex h-full max-w-xl flex-col px-4 pb-0 pt-[calc(env(safe-area-inset-top,0)+.2rem)] sm:px-6">
-        <header className="relative flex items-center py-2">
+        <header className="sticky top-0 z-20 -mx-4 flex items-center border-b border-slate-200/40 bg-white/40 px-4 py-2 backdrop-blur-lg dark:border-white/10 dark:bg-slate-900/35 sm:-mx-6 sm:px-6">
           <button
             type="button"
             onClick={onClose}
@@ -25,7 +25,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onClose }) => {
           </h2>
         </header>
 
-        <div className="mt-6 flex-1 space-y-6 overflow-y-auto pb-6">
+        <div className="flex-1 -mt-4 space-y-6 overflow-y-auto pb-6 pt-4">
           <section className="rounded-3xl border border-slate-900/10 bg-white/90 p-5 shadow-sm dark:border-slate-800/70 dark:bg-slate-900/90">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">

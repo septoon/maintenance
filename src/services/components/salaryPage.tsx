@@ -214,7 +214,7 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
   return (
     <div className="fixed inset-0 z-50 bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-white">
       <div className="mx-auto flex h-full max-w-xl flex-col px-4 pb-0 pt-[calc(env(safe-area-inset-top,0)+.2rem)] sm:px-6">
-        <header className="relative flex items-center py-2">
+        <header className="sticky top-0 z-20 -mx-4 flex items-center border-b border-slate-200/40 bg-white/40 px-4 py-2 backdrop-blur-lg dark:border-white/10 dark:bg-slate-900/35 sm:-mx-6 sm:px-6">
           <button
             type="button"
             onClick={onClose}
@@ -228,7 +228,7 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
           </h2>
         </header>
 
-        <div className="mt-6 flex-1 space-y-6 overflow-y-auto pb-6">
+        <div className="flex-1 -mt-4 space-y-6 overflow-y-auto pb-6 pt-4">
           {!apiIsConfigured && (
             <div className="rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-300">
               Укажите адрес сервера в .env (REACT_APP_API_SALARY).
