@@ -158,6 +158,16 @@ const App: React.FC = () => {
     loadFuelRecords();
   }, [loadFuelRecords]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!profilePageOpen && !salaryPageOpen) return;
+    const { overflow } = document.body.style;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = overflow;
+    };
+  }, [profilePageOpen, salaryPageOpen]);
+
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
     setForm(prev => ({ ...prev, [name]: value }));
