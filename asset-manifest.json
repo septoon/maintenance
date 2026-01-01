@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/maintenance/static/css/main.0550154c.css",
-    "main.js": "/maintenance/static/js/main.5ec5b0e1.js",
+    "main.css": "/maintenance/static/css/main.db8a1129.css",
+    "main.js": "/maintenance/static/js/main.78367234.js",
     "static/media/InterVariable-Italic.woff2": "/maintenance/static/media/InterVariable-Italic.e295f70fe3e2df296c7b.woff2",
     "static/media/InterVariable.woff2": "/maintenance/static/media/InterVariable.a0e477f2f1f9d2376fde.woff2",
     "static/media/primeicons.svg": "/maintenance/static/media/primeicons.6ed59f962963a4a73af2.svg",
@@ -12,11 +12,11 @@
     "service-worker.js": "/maintenance/service-worker.js",
     "static/media/VTB_Logo.png": "/maintenance/static/media/VTB_Logo.5e47f629e564430a68c0.png",
     "index.html": "/maintenance/index.html",
-    "main.0550154c.css.map": "/maintenance/static/css/main.0550154c.css.map",
-    "main.5ec5b0e1.js.map": "/maintenance/static/js/main.5ec5b0e1.js.map"
+    "main.db8a1129.css.map": "/maintenance/static/css/main.db8a1129.css.map",
+    "main.78367234.js.map": "/maintenance/static/js/main.78367234.js.map"
   },
   "entrypoints": [
-    "static/css/main.0550154c.css",
-    "static/js/main.5ec5b0e1.js"
+    "static/css/main.db8a1129.css",
+    "static/js/main.78367234.js"
   ]
 }
