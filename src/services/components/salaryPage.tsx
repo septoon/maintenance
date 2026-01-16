@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchSalaryMonths } from '../salaryApi';
-import { SalaryMonth } from '../../types';
+import { SalaryEntry, SalaryMonth } from '../../types';
 
 type SalaryPageProps = {
   onClose: () => void;
@@ -103,6 +103,19 @@ function formatRubles(value: number): string {
   });
 }
 
+function calculateWeekendPart(weekendPay: number): number {
+  return weekendPay / 2;
+}
+
+function calculateTax(entry: SalaryEntry): number {
+  const weekendPart = calculateWeekendPart(entry.weekendPay);
+  return Math.floor((entry.baseSalary + weekendPart) * TAX_RATE);
+}
+
+function calculatePayout(entry: SalaryEntry): number {
+  return entry.baseSalary + entry.weekendPay - calculateTax(entry);
+}
+
 const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
   const [months, setMonths] = useState<SalaryMonth[]>([]);
   const [loading, setLoading] = useState(false);
@@ -193,18 +206,17 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
 
     const monthNumber = String(monthIndex + 1).padStart(2, '0');
     const periodStart = `01.${monthNumber}.${year}`;
-    const totalNet = sortedEntries.reduce((acc, entry) => {
-      const tax = Math.floor(entry.baseSalary * TAX_RATE);
-      return acc + entry.baseSalary - tax + entry.weekendPay;
-    }, 0);
+    const totalNet = sortedEntries.reduce(
+      (acc, entry) => acc + calculatePayout(entry),
+      0
+    );
 
     let amount = totalNet;
     let periodEnd = periodStart;
 
     if (sortedEntries.length === 1) {
       const entry = sortedEntries[0];
-      const tax = Math.floor(entry.baseSalary * TAX_RATE);
-      amount = entry.baseSalary - tax + entry.weekendPay;
+      amount = calculatePayout(entry);
       periodEnd = formatDateShort(entry.date);
     } else {
       const lastDay = new Date(Number(year), monthIndex + 1, 0).getDate();
@@ -228,10 +240,10 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
       .sort((a, b) => a.localeCompare(b));
     if (dates.length === 0) return null;
 
-    const totalNet = entries.reduce((acc, entry) => {
-      const tax = Math.floor(entry.baseSalary * TAX_RATE);
-      return acc + entry.baseSalary - tax + entry.weekendPay;
-    }, 0);
+    const totalNet = entries.reduce(
+      (acc, entry) => acc + calculatePayout(entry),
+      0
+    );
 
     return {
       monthLabel: `${orderedMonths.length} ${formatMonthCount(orderedMonths.length)}`,
@@ -373,13 +385,13 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
                     0
                   );
                   const totalTax = sortedEntries.reduce(
-                    (acc, entry) => acc + Math.floor(entry.baseSalary * TAX_RATE),
+                    (acc, entry) => acc + calculateTax(entry),
                     0
                   );
-                  const totalNet = sortedEntries.reduce((acc, entry) => {
-                    const tax = Math.floor(entry.baseSalary * TAX_RATE);
-                    return acc + entry.baseSalary - tax + entry.weekendPay;
-                  }, 0);
+                  const totalNet = sortedEntries.reduce(
+                    (acc, entry) => acc + calculatePayout(entry),
+                    0
+                  );
                   const totalGross = totalBase + totalWeekend;
                   return (
                     <div
@@ -405,9 +417,9 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
                       {isExpanded && (
                         <div className="mt-4 space-y-3">
                           {sortedEntries.map(entry => {
-                            const tax = Math.floor(entry.baseSalary * TAX_RATE);
-                            const payout = entry.baseSalary - tax + entry.weekendPay;
-                            const weekendPart = entry.weekendPay / 2;
+                            const tax = calculateTax(entry);
+                            const payout = calculatePayout(entry);
+                            const weekendPart = calculateWeekendPart(entry.weekendPay);
                             return (
                               <div
                                 key={`${month.month}-${entry.date}`}
