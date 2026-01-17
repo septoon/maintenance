@@ -108,8 +108,7 @@ function calculateWeekendPart(weekendPay: number): number {
 }
 
 function calculateTax(entry: SalaryEntry): number {
-  const weekendPart = calculateWeekendPart(entry.weekendPay);
-  return Math.floor((entry.baseSalary + weekendPart) * TAX_RATE);
+  return Math.floor((entry.baseSalary + entry.weekendPay) * TAX_RATE);
 }
 
 function calculatePayout(entry: SalaryEntry): number {
