@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchSalaryMonths } from '../salaryApi';
+import { Dialog } from 'primereact/dialog';
+import {
+  createSalaryEntry,
+  deleteSalaryEntry,
+  fetchSalaryMonths,
+  updateSalaryEntry
+} from '../salaryApi';
 import { SalaryEntry, SalaryMonth } from '../../types';
 
 type SalaryPageProps = {
@@ -36,6 +42,11 @@ const MONTH_LABELS_GENITIVE = [
 ];
 const TAX_RATE = 0.13;
 const SALARY_VISIBILITY_KEY = 'salary-amount-hidden';
+const initialSalaryFormState = {
+  date: '',
+  baseSalary: '',
+  weekendPay: ''
+};
 
 function formatMonthLabel(value: string): string {
   const [year, month] = value.split('-');
@@ -126,6 +137,12 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
   const [showAllTime, setShowAllTime] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
+  const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
+  const [salaryForm, setSalaryForm] = useState(initialSalaryFormState);
+  const [salarySubmitting, setSalarySubmitting] = useState(false);
+  const [salaryFormError, setSalaryFormError] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<SalaryEntry | null>(null);
+  const [salaryActionNotice, setSalaryActionNotice] = useState<string | null>(null);
 
   const apiIsConfigured = Boolean(process.env.REACT_APP_API_SALARY);
 
@@ -158,6 +175,125 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(SALARY_VISIBILITY_KEY, String(isAmountHidden));
   }, [isAmountHidden]);
+
+  useEffect(() => {
+    if (!salaryActionNotice) return;
+
+    const timer = setTimeout(() => setSalaryActionNotice(null), 3000);
+    return () => clearTimeout(timer);
+  }, [salaryActionNotice]);
+
+  const handleSalaryFormChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value } = event.target;
+    setSalaryForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const openCreateSalaryDialog = () => {
+    setEditingEntry(null);
+    setSalaryForm(initialSalaryFormState);
+    setSalaryFormError(null);
+    setSalaryDialogOpen(true);
+  };
+
+  const openEditSalaryDialog = (entry: SalaryEntry) => {
+    setEditingEntry(entry);
+    setSalaryForm({
+      date: entry.date,
+      baseSalary: String(entry.baseSalary),
+      weekendPay: entry.weekendPay ? String(entry.weekendPay) : ''
+    });
+    setSalaryFormError(null);
+    setSalaryDialogOpen(true);
+  };
+
+  const openSalaryDatePicker = (
+    event: React.MouseEvent<HTMLInputElement>
+  ) => {
+    const input = event.currentTarget;
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+    }
+  };
+
+  const handleSalarySubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!apiIsConfigured) {
+      setSalaryFormError('Добавьте REACT_APP_API_SALARY в .env перед использованием раздела зарплаты.');
+      return;
+    }
+
+    const date = salaryForm.date.trim();
+    const baseSalaryRaw = salaryForm.baseSalary.trim().replace(',', '.');
+    const weekendPayRaw = salaryForm.weekendPay.trim().replace(',', '.');
+
+    if (!date || !baseSalaryRaw) {
+      setSalaryFormError('Заполните дату и оклад.');
+      return;
+    }
+
+    const baseSalary = Number(baseSalaryRaw);
+    const weekendPay = weekendPayRaw ? Number(weekendPayRaw) : 0;
+
+    if (Number.isNaN(baseSalary) || baseSalary < 0) {
+      setSalaryFormError('Оклад должен быть неотрицательным числом.');
+      return;
+    }
+
+    if (Number.isNaN(weekendPay) || weekendPay < 0) {
+      setSalaryFormError('Оплата в выходной должна быть неотрицательным числом.');
+      return;
+    }
+
+    try {
+      setSalarySubmitting(true);
+      setSalaryFormError(null);
+      if (editingEntry) {
+        await updateSalaryEntry(editingEntry, {
+          date,
+          baseSalary,
+          weekendPay
+        });
+      } else {
+        await createSalaryEntry({
+          date,
+          baseSalary,
+          weekendPay
+        });
+      }
+      await loadSalary();
+      setSalaryForm(initialSalaryFormState);
+      setSalaryDialogOpen(false);
+      setEditingEntry(null);
+      setSalaryActionNotice(
+        editingEntry ? 'Запись зарплаты обновлена.' : 'Запись зарплаты добавлена.'
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Не удалось сохранить запись зарплаты.';
+      setSalaryFormError(message);
+    } finally {
+      setSalarySubmitting(false);
+    }
+  };
+
+  const handleSalaryDelete = async (entry: SalaryEntry) => {
+    const confirmed = window.confirm('Удалить запись по зарплате?');
+    if (!confirmed) return;
+
+    try {
+      setError(null);
+      await deleteSalaryEntry(entry);
+      await loadSalary();
+      setSalaryActionNotice('Запись зарплаты удалена.');
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Не удалось удалить запись зарплаты.';
+      setError(message);
+    }
+  };
 
   const orderedMonths = useMemo(
     () => [...months].sort((a, b) => a.month.localeCompare(b.month)),
@@ -260,6 +396,11 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
       ? `${formatCurrency(activeSummary.amount).replace(/\S/g, '*')} ₽`
       : `${formatCurrency(activeSummary.amount)} ₽`
     : '';
+  const fieldClasses =
+    'w-full rounded-2xl border border-slate-900/10 bg-white/90 px-4 py-3 text-base text-slate-900 shadow-sm outline-none transition focus:border-transparent focus:ring-2 focus:ring-blue-500/60 focus:ring-offset-1 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-blue-400/60 dark:focus:ring-offset-slate-900';
+  const primaryButtonClass =
+    'inline-flex items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-button transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70 disabled:shadow-none active:translate-y-0 active:shadow-buttonActive dark:from-blue-500 dark:to-blue-400';
+  const dialogStyle = { width: '100%', maxWidth: '480px', margin: '0 auto' };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-white">
@@ -278,7 +419,7 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
           </h2>
         </header>
 
-        <div className="flex-1 -mt-4 space-y-6 overflow-y-auto pb-6 pt-4">
+        <div className="mt-4 flex-1 space-y-6 overflow-y-auto pb-24">
           {!apiIsConfigured && (
             <div className="rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-300">
               Укажите адрес сервера в .env (REACT_APP_API_SALARY).
@@ -288,6 +429,12 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
           {apiIsConfigured && error && (
             <div className="rounded-2xl border border-rose-300/60 bg-rose-100/80 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-500/40 dark:bg-rose-950/60 dark:text-rose-100">
               {error}
+            </div>
+          )}
+
+          {apiIsConfigured && salaryActionNotice && (
+            <div className="rounded-2xl border border-emerald-300/70 bg-emerald-100/80 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/60 dark:text-emerald-100">
+              {salaryActionNotice}
             </div>
           )}
 
@@ -415,17 +562,40 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
 
                       {isExpanded && (
                         <div className="mt-4 space-y-3">
-                          {sortedEntries.map(entry => {
+                          {sortedEntries.map((entry, entryIndex) => {
                             const tax = calculateTax(entry);
                             const payout = calculatePayout(entry);
                             const weekendPart = calculateWeekendPart(entry.weekendPay);
                             return (
                               <div
-                                key={`${month.month}-${entry.date}`}
+                                key={
+                                  entry.id ??
+                                  `${month.month}-${entry.date}-${entry.baseSalary}-${entry.weekendPay}-${entryIndex}`
+                                }
                                 className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/80"
                               >
-                                <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                                  {formatEntryDate(entry.date)}
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                                    {formatEntryDate(entry.date)}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => openEditSalaryDialog(entry)}
+                                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300/80 bg-white/80 text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-white/15 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                                      aria-label="Редактировать запись зарплаты"
+                                    >
+                                      <i className="pi pi-pencil text-sm" aria-hidden="true" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSalaryDelete(entry)}
+                                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-rose-300/80 bg-rose-50/80 text-rose-700 transition hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 dark:border-rose-500/40 dark:bg-rose-900/30 dark:text-rose-200 dark:hover:bg-rose-900/40"
+                                      aria-label="Удалить запись зарплаты"
+                                    >
+                                      <i className="pi pi-trash text-sm" aria-hidden="true" />
+                                    </button>
+                                  </div>
                                 </div>
                                 <dl className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-200">
                                   <div className="flex items-center justify-between">
@@ -522,6 +692,98 @@ const SalaryPage: React.FC<SalaryPageProps> = ({ onClose }) => {
           )}
         </div>
       </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0)+1rem)] z-30 mx-auto w-full max-w-xl px-4 sm:px-6">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={openCreateSalaryDialog}
+            className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-blue-500 text-white shadow-[0_12px_30px_rgba(37,99,235,0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_35px_rgba(37,99,235,0.5)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            aria-label="Добавить запись зарплаты"
+          >
+            <i className="pi pi-plus text-xl" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      <Dialog
+        header={editingEntry ? 'Редактировать запись зарплаты' : 'Добавить запись зарплаты'}
+        visible={salaryDialogOpen}
+        position="bottom"
+        modal
+        onHide={() => {
+          setSalaryDialogOpen(false);
+          setEditingEntry(null);
+          setSalaryFormError(null);
+        }}
+        style={dialogStyle}
+        className="p-0"
+        headerClassName="bg-white/90 text-slate-900 dark:bg-slate-900/90 dark:text-slate-100"
+        contentClassName="bg-white/90 text-slate-900 dark:bg-slate-900/90 dark:text-slate-100"
+      >
+        <form className="mb-4 flex flex-col gap-4" onSubmit={handleSalarySubmit}>
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+            Дата выплаты
+            <input
+              type="date"
+              name="date"
+              value={salaryForm.date}
+              onChange={handleSalaryFormChange}
+              onClick={openSalaryDatePicker}
+              required
+              disabled={salarySubmitting || !apiIsConfigured}
+              className={fieldClasses}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+            Оклад
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              name="baseSalary"
+              value={salaryForm.baseSalary}
+              onChange={handleSalaryFormChange}
+              required
+              disabled={salarySubmitting || !apiIsConfigured}
+              className={fieldClasses}
+              placeholder="0.00"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+            Оплата в выходной (опционально)
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              name="weekendPay"
+              value={salaryForm.weekendPay}
+              onChange={handleSalaryFormChange}
+              disabled={salarySubmitting || !apiIsConfigured}
+              className={fieldClasses}
+              placeholder="0.00"
+            />
+          </label>
+
+          <button
+            className={primaryButtonClass}
+            type="submit"
+            disabled={salarySubmitting || !apiIsConfigured}
+          >
+            {salarySubmitting ? 'Сохраняем…' : editingEntry ? 'Сохранить изменения' : 'Добавить запись'}
+          </button>
+        </form>
+
+        {salaryFormError && (
+          <div className="mt-4 rounded-2xl border border-red-400/45 bg-red-100/70 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/50 dark:bg-red-950/40 dark:text-red-200">
+            {salaryFormError}
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 };

@@ -6,6 +6,14 @@ const GAS_API_URL = process.env.REACT_APP_API_GAS;
 type FuelApiConfig = {
   readUrl: string;
   createUrl: string;
+  updateUrl: string;
+  deleteUrl: string;
+};
+
+type FuelApiOverrides = {
+  post: string | null;
+  put: string | null;
+  delete: string | null;
 };
 
 let cachedConfig: FuelApiConfig | null = null;
@@ -29,25 +37,33 @@ function toAbsoluteUrl(rawUrl: string, base?: string): URL {
   }
 }
 
-function extractPostOverride(parsed: URL): string | null {
-  let override: string | null = null;
+function extractOverrides(parsed: URL): FuelApiOverrides {
+  const overrides: FuelApiOverrides = {
+    post: null,
+    put: null,
+    delete: null
+  };
 
-  if (parsed.searchParams.has('post')) {
-    override = parsed.searchParams.get('post') ?? null;
-    parsed.searchParams.delete('post');
-  }
+  (['post', 'put', 'delete'] as const).forEach(key => {
+    if (parsed.searchParams.has(key)) {
+      overrides[key] = parsed.searchParams.get(key) ?? null;
+      parsed.searchParams.delete(key);
+    }
+  });
 
   if (parsed.hash) {
     const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ''));
-    if (!override && hashParams.has('post')) {
-      override = hashParams.get('post') ?? null;
-    }
-    hashParams.delete('post');
+    (['post', 'put', 'delete'] as const).forEach(key => {
+      if (!overrides[key] && hashParams.has(key)) {
+        overrides[key] = hashParams.get(key) ?? null;
+      }
+      hashParams.delete(key);
+    });
     const remainingHash = hashParams.toString();
     parsed.hash = remainingHash ? `#${remainingHash}` : '';
   }
 
-  return override;
+  return overrides;
 }
 
 function buildDefaultCreateUrl(parsedInput: URL): string {
@@ -79,36 +95,161 @@ function resolveConfig(): FuelApiConfig {
 
   const baseUrl = ensureGasApiUrl();
   const parsed = toAbsoluteUrl(baseUrl);
-  const override = extractPostOverride(parsed);
+  const overrides = extractOverrides(parsed);
   const readUrl = parsed.toString();
-  const createUrl = override
-    ? toAbsoluteUrl(override, parsed.origin).toString()
+  const createUrl = overrides.post
+    ? toAbsoluteUrl(overrides.post, parsed.origin).toString()
     : buildDefaultCreateUrl(parsed);
+  const updateUrl = overrides.put
+    ? toAbsoluteUrl(overrides.put, parsed.origin).toString()
+    : createUrl;
+  const deleteUrl = overrides.delete
+    ? toAbsoluteUrl(overrides.delete, parsed.origin).toString()
+    : createUrl;
 
-  cachedConfig = { readUrl, createUrl };
+  cachedConfig = { readUrl, createUrl, updateUrl, deleteUrl };
   return cachedConfig;
 }
 
 function normalizeFuelRecord(raw: any): FuelRecord {
   return {
-    id: raw.id ?? raw._id,
-    date: String(raw.date ?? ''),
-    mileage: raw.mileage !== undefined && raw.mileage !== null ? Number(raw.mileage) : null,
-    liters: raw.liters !== undefined && raw.liters !== null ? Number(raw.liters) : null,
-    fuelCost:
-      raw.fuelCost !== undefined && raw.fuelCost !== null ? Number(raw.fuelCost) : null
+    id: raw?.id ?? raw?._id,
+    date: String(raw?.date ?? ''),
+    mileage: raw?.mileage !== undefined && raw?.mileage !== null ? Number(raw.mileage) : null,
+    liters: raw?.liters !== undefined && raw?.liters !== null ? Number(raw.liters) : null,
+    fuelCost: raw?.fuelCost !== undefined && raw?.fuelCost !== null ? Number(raw.fuelCost) : null
   };
 }
 
 function normalizeFuelInput(input: FuelRecordInput): FuelRecord {
   return {
-    date: input.date,
+    date: String(input.date ?? ''),
     mileage:
       input.mileage !== undefined && input.mileage !== null ? Number(input.mileage) : null,
     liters: input.liters !== undefined && input.liters !== null ? Number(input.liters) : null,
     fuelCost:
       input.fuelCost !== undefined && input.fuelCost !== null ? Number(input.fuelCost) : null
   };
+}
+
+function validateFuelRecord(record: FuelRecord): void {
+  const mileage = record.mileage ?? null;
+  const liters = record.liters ?? null;
+  const fuelCost = record.fuelCost ?? null;
+
+  if (!record.date) {
+    throw new Error('Укажите дату записи топлива.');
+  }
+
+  if (mileage === null && liters === null && fuelCost === null) {
+    throw new Error('Укажите пробег, бензин или стоимость перед отправкой.');
+  }
+
+  if (mileage !== null && (Number.isNaN(mileage) || mileage < 0)) {
+    throw new Error('Некорректное значение пробега.');
+  }
+
+  if (liters !== null && (Number.isNaN(liters) || liters < 0)) {
+    throw new Error('Некорректное значение количества топлива.');
+  }
+
+  if (fuelCost !== null && (Number.isNaN(fuelCost) || fuelCost < 0)) {
+    throw new Error('Некорректное значение суммы заправки.');
+  }
+}
+
+function toRequestPayload(record: FuelRecord): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    date: record.date
+  };
+
+  if (record.mileage !== null) {
+    payload.mileage = record.mileage;
+  }
+
+  if (record.liters !== null) {
+    payload.liters = record.liters;
+  }
+
+  if (record.fuelCost !== null) {
+    payload.fuelCost = record.fuelCost;
+  }
+
+  return payload;
+}
+
+function appendIdToUrl(baseUrl: string, id: string): string {
+  const parsed = toAbsoluteUrl(baseUrl);
+  parsed.pathname = `${parsed.pathname.replace(/\/$/, '')}/${encodeURIComponent(id)}`;
+  return parsed.toString();
+}
+
+function sameNumber(left?: number | null, right?: number | null): boolean {
+  const a = left ?? null;
+  const b = right ?? null;
+  if (a === null || b === null) {
+    return a === b;
+  }
+  return Number(a) === Number(b);
+}
+
+function isSameFuelRecord(record: FuelRecord, target: FuelRecord): boolean {
+  if (target.id && record.id && String(target.id) === String(record.id)) {
+    return true;
+  }
+
+  return (
+    record.date === target.date &&
+    sameNumber(record.mileage, target.mileage) &&
+    sameNumber(record.liters, target.liters) &&
+    sameNumber(record.fuelCost, target.fuelCost)
+  );
+}
+
+function resolveSaveUrl(readUrl: string): string {
+  let parsedRead: URL;
+  try {
+    parsedRead = toAbsoluteUrl(readUrl);
+  } catch {
+    throw new Error('Не удалось сохранить данные топлива: невалидный адрес данных.');
+  }
+
+  const segments = parsedRead.pathname.split('/').filter(Boolean);
+  const lastSegment = segments[segments.length - 1];
+  if (!lastSegment) {
+    throw new Error('Не удалось сохранить данные топлива: неизвестный файл данных.');
+  }
+
+  const fileName = lastSegment.includes('.') ? lastSegment : `${lastSegment}.json`;
+  return new URL(`/api/save/${fileName}`, parsedRead.origin).toString();
+}
+
+async function readRawFuelRecords(readUrl: string): Promise<any[]> {
+  const existing = await axios.get(readUrl, {
+    headers: { Accept: 'application/json' },
+    responseType: 'json'
+  });
+
+  if (!Array.isArray(existing.data)) {
+    throw new Error('Формат данных на сервере не поддерживает операции с записями топлива.');
+  }
+
+  return existing.data;
+}
+
+async function saveRawFuelRecords(readUrl: string, records: any[]): Promise<void> {
+  const saveUrl = resolveSaveUrl(readUrl);
+
+  await axios.put(saveUrl, records, {
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
+    }
+  });
+}
+
+function findFuelRecordIndex(rawRecords: any[], target: FuelRecord): number {
+  return rawRecords.findIndex(item => isSameFuelRecord(normalizeFuelRecord(item), target));
 }
 
 export async function fetchFuelRecords(): Promise<FuelRecord[]> {
@@ -132,7 +273,9 @@ export async function fetchFuelRecords(): Promise<FuelRecord[]> {
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      const message = status ? `Не удалось получить данные топлива (${status})` : 'Не удалось получить данные топлива.';
+      const message = status
+        ? `Не удалось получить данные топлива (${status})`
+        : 'Не удалось получить данные топлива.';
       throw new Error(message);
     }
 
@@ -143,39 +286,9 @@ export async function fetchFuelRecords(): Promise<FuelRecord[]> {
 export async function createFuelRecord(input: FuelRecordInput): Promise<FuelRecord> {
   const { createUrl, readUrl } = resolveConfig();
   const normalized = normalizeFuelInput(input);
+  validateFuelRecord(normalized);
 
-  if (
-    normalized.mileage === null &&
-    normalized.liters === null &&
-    normalized.fuelCost === null
-  ) {
-    throw new Error('Укажите пробег, бензин или стоимость перед отправкой.');
-  }
-
-  const payload: Record<string, unknown> = {
-    date: normalized.date
-  };
-
-  if (normalized.mileage !== null) {
-    if (Number.isNaN(normalized.mileage)) {
-      throw new Error('Некорректное значение пробега.');
-    }
-    payload.mileage = normalized.mileage;
-  }
-
-  if (normalized.liters !== null) {
-    if (Number.isNaN(normalized.liters)) {
-      throw new Error('Некорректное значение количества топлива.');
-    }
-    payload.liters = normalized.liters;
-  }
-
-  if (normalized.fuelCost !== null) {
-    if (Number.isNaN(normalized.fuelCost)) {
-      throw new Error('Некорректное значение суммы заправки.');
-    }
-    payload.fuelCost = normalized.fuelCost;
-  }
+  const payload = toRequestPayload(normalized);
 
   try {
     const response = await axios.post(createUrl, payload, {
@@ -195,10 +308,29 @@ export async function createFuelRecord(input: FuelRecordInput): Promise<FuelReco
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       if (status === 404 || status === 405) {
-        return appendFuelRecordViaFileApi(readUrl, normalized);
+        try {
+          const existing = await readRawFuelRecords(readUrl);
+          const updated = [...existing, payload];
+          await saveRawFuelRecords(readUrl, updated);
+          return normalized;
+        } catch (fallbackError) {
+          if (axios.isAxiosError(fallbackError)) {
+            const fallbackStatus = fallbackError.response?.status;
+            const fallbackMessage = fallbackStatus
+              ? `Не удалось сохранить данные топлива (${fallbackStatus})`
+              : 'Не удалось сохранить данные топлива.';
+            throw new Error(fallbackMessage);
+          }
+          if (fallbackError instanceof Error) {
+            throw fallbackError;
+          }
+          throw new Error('Не удалось сохранить данные топлива.');
+        }
       }
 
-      const message = status ? `Не удалось сохранить данные топлива (${status})` : 'Не удалось сохранить данные топлива.';
+      const message = status
+        ? `Не удалось сохранить данные топлива (${status})`
+        : 'Не удалось сохранить данные топлива.';
       throw new Error(message);
     }
 
@@ -206,54 +338,130 @@ export async function createFuelRecord(input: FuelRecordInput): Promise<FuelReco
   }
 }
 
-async function appendFuelRecordViaFileApi(readUrl: string, payload: FuelRecord): Promise<FuelRecord> {
-  let parsedRead: URL;
-  try {
-    parsedRead = toAbsoluteUrl(readUrl);
-  } catch {
-    throw new Error('Не удалось сохранить данные топлива: невалидный адрес данных.');
-  }
+export async function updateFuelRecord(target: FuelRecord, input: FuelRecordInput): Promise<FuelRecord> {
+  const { readUrl, updateUrl } = resolveConfig();
+  const normalized = normalizeFuelInput(input);
+  validateFuelRecord(normalized);
 
-  const segments = parsedRead.pathname.split('/').filter(Boolean);
-  const lastSegment = segments[segments.length - 1];
-  if (!lastSegment) {
-    throw new Error('Не удалось сохранить данные топлива: неизвестный файл данных.');
-  }
-
-  const fileName = lastSegment.includes('.') ? lastSegment : `${lastSegment}.json`;
-  const saveUrl = new URL(`/api/save/${fileName}`, parsedRead.origin).toString();
+  const payload = toRequestPayload(normalized);
 
   try {
-    const existing = await axios.get(parsedRead.toString(), {
-      headers: { Accept: 'application/json' },
-      responseType: 'json'
-    });
+    if (target.id) {
+      const response = await axios.put(appendIdToUrl(updateUrl, String(target.id)), payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
+        },
+        validateStatus: status => (status >= 200 && status < 300) || status === 204
+      });
 
-    if (!Array.isArray(existing.data)) {
-      throw new Error('Формат данных на сервере не поддерживает добавление записей.');
-    }
-
-    const updatedData = [...existing.data, payload];
-
-    await axios.put(saveUrl, updatedData, {
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
+      if (response.status === 204 || response.data === undefined || response.data === '') {
+        return { ...normalized, id: target.id };
       }
-    });
 
-    return payload;
-  } catch (fallbackError) {
-    if (axios.isAxiosError(fallbackError)) {
-      const status = fallbackError.response?.status;
-      const message = status ? `Не удалось сохранить данные топлива (${status})` : 'Не удалось сохранить данные топлива.';
-      throw new Error(message);
+      return normalizeFuelRecord(response.data);
     }
 
-    if (fallbackError instanceof Error) {
-      throw fallbackError;
+    throw new Error('fallback');
+  } catch (error) {
+    if (error instanceof Error && error.message === 'fallback') {
+      // continue to file fallback
+    } else if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status !== 404 && status !== 405) {
+        const message = status
+          ? `Не удалось обновить запись топлива (${status})`
+          : 'Не удалось обновить запись топлива.';
+        throw new Error(message);
+      }
     }
 
-    throw new Error('Не удалось сохранить данные топлива.');
+    try {
+      const existing = await readRawFuelRecords(readUrl);
+      const index = findFuelRecordIndex(existing, target);
+
+      if (index === -1) {
+        throw new Error('Запись топлива для обновления не найдена.');
+      }
+
+      const updated = [...existing];
+      const existingRecord = normalizeFuelRecord(updated[index]);
+      updated[index] = {
+        ...updated[index],
+        ...payload,
+        id: existingRecord.id ?? target.id,
+        _id: (updated[index] as any)?._id
+      };
+
+      await saveRawFuelRecords(readUrl, updated);
+      return { ...normalized, id: existingRecord.id ?? target.id };
+    } catch (fallbackError) {
+      if (axios.isAxiosError(fallbackError)) {
+        const status = fallbackError.response?.status;
+        const message = status
+          ? `Не удалось обновить запись топлива (${status})`
+          : 'Не удалось обновить запись топлива.';
+        throw new Error(message);
+      }
+      if (fallbackError instanceof Error) {
+        throw fallbackError;
+      }
+      throw new Error('Не удалось обновить запись топлива.');
+    }
+  }
+}
+
+export async function deleteFuelRecord(target: FuelRecord): Promise<void> {
+  const { readUrl, deleteUrl } = resolveConfig();
+
+  try {
+    if (target.id) {
+      await axios.delete(appendIdToUrl(deleteUrl, String(target.id)), {
+        headers: {
+          Accept: 'application/json'
+        },
+        validateStatus: status => (status >= 200 && status < 300) || status === 204
+      });
+      return;
+    }
+
+    throw new Error('fallback');
+  } catch (error) {
+    if (error instanceof Error && error.message === 'fallback') {
+      // continue to file fallback
+    } else if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status !== 404 && status !== 405) {
+        const message = status
+          ? `Не удалось удалить запись топлива (${status})`
+          : 'Не удалось удалить запись топлива.';
+        throw new Error(message);
+      }
+    }
+
+    try {
+      const existing = await readRawFuelRecords(readUrl);
+      const index = findFuelRecordIndex(existing, target);
+
+      if (index === -1) {
+        throw new Error('Запись топлива для удаления не найдена.');
+      }
+
+      const updated = [...existing];
+      updated.splice(index, 1);
+      await saveRawFuelRecords(readUrl, updated);
+    } catch (fallbackError) {
+      if (axios.isAxiosError(fallbackError)) {
+        const status = fallbackError.response?.status;
+        const message = status
+          ? `Не удалось удалить запись топлива (${status})`
+          : 'Не удалось удалить запись топлива.';
+        throw new Error(message);
+      }
+      if (fallbackError instanceof Error) {
+        throw fallbackError;
+      }
+      throw new Error('Не удалось удалить запись топлива.');
+    }
   }
 }

@@ -25,7 +25,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onClose }) => {
           </h2>
         </header>
 
-        <div className="flex-1 -mt-4 space-y-6 overflow-y-auto pb-6 pt-4">
+        <div className="mt-4 flex-1 space-y-6 overflow-y-auto pb-6">
           <section className="rounded-3xl border border-slate-900/10 bg-white/90 p-5 shadow-sm dark:border-slate-800/70 dark:bg-slate-900/90">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">

@@ -27,9 +27,16 @@ export type FuelRecordInput = {
 };
 
 export type SalaryEntry = {
+  id?: string;
   date: string;
   baseSalary: number;
   weekendPay: number;
+};
+
+export type SalaryEntryInput = {
+  date: string;
+  baseSalary: number;
+  weekendPay?: number | null;
 };
 
 export type SalaryMonth = {

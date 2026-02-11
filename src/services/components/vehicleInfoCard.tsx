@@ -11,11 +11,12 @@ const vehicleInfo = [
   { label: 'ПТС:', value: '82 РУ 074120' },
   { label: 'Цвет кузова (кабины):', value: 'Белый' },
   { label: 'Объем двигателя (см³):', value: '1591' },
-  { label: 'Мощность (л.с.):', value: '123' }
+  { label: 'Мощность (л.с.):', value: '123' },
+  { label: 'Изначальный пробег:', value: '191 794 км' }
 ];
 
 const VehicleInfoCard: React.FC<VehicleInfoCardProps> = ({ className }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   return (
     <section className={className}>
