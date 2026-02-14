@@ -583,7 +583,7 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
         const remainingCompensation = compensation - effectiveAppliedCompensation;
         const isCompensationClosed = effectiveAppliedCompensation >= compensation && compensation > 0;
 
-        let compensationStatusLabel = 'Открыто';
+        let compensationStatusLabel = '';
         if (isCompensationClosed) {
           compensationStatusLabel = 'Закрыто';
         } else if (effectiveAppliedCompensation > 0) {

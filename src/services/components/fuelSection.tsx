@@ -135,7 +135,7 @@ const FuelSection: React.FC<FuelSectionProps> = ({
                     <span
                       className={`text-sm font-light ${month.fuelDiff < 0 ? 'text-red-600 dark:text-red-400' : month.fuelDiff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
                     >
-                      {formatNumber(month.approvedRate, 1)} л / 100 км
+                      {formatNumber(month.approvedRate, 1)} л.
                     </span>
                     <i
                       className={`pi ${isExpanded ? 'pi-chevron-up' : 'pi-chevron-down'} text-slate-600 dark:text-slate-300`}
@@ -293,9 +293,9 @@ const FuelSection: React.FC<FuelSectionProps> = ({
                 {formatNumber(fuelSummary.totals.netCompensation, 2)} ₽
               </dd>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-t pt-2">
               <dt className="font-medium text-slate-900 dark:text-slate-100">
-                Баланс топлива после вычетов:
+                Остаток долга:
               </dt>
               <dd
                 className={`text-base font-semibold ${fuelSummary.totals.adjustedFuelDiff < 0 ? 'text-red-600 dark:text-red-400' : fuelSummary.totals.adjustedFuelDiff > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-100'}`}
