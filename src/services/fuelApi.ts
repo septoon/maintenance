@@ -127,6 +127,10 @@ function normalizeFuelRecord(raw: any): FuelRecord {
     adjustmentKind: rawAdjustmentKind,
     monthKey: raw?.monthKey ? String(raw.monthKey) : null,
     amount: raw?.amount !== undefined && raw?.amount !== null ? Number(raw.amount) : null,
+    carryoverDebtRub:
+      raw?.carryoverDebtRub !== undefined && raw?.carryoverDebtRub !== null
+        ? Number(raw.carryoverDebtRub)
+        : null,
     comment: raw?.comment !== undefined && raw?.comment !== null ? String(raw.comment) : null,
     date: String(raw?.date ?? ''),
     mileage: raw?.mileage !== undefined && raw?.mileage !== null ? Number(raw.mileage) : null,
@@ -147,6 +151,10 @@ function normalizeFuelInput(input: FuelRecordInput): FuelRecord {
     adjustmentKind,
     monthKey: input.monthKey ? String(input.monthKey).slice(0, 7) : null,
     amount: input.amount !== undefined && input.amount !== null ? Number(input.amount) : null,
+    carryoverDebtRub:
+      input.carryoverDebtRub !== undefined && input.carryoverDebtRub !== null
+        ? Number(input.carryoverDebtRub)
+        : null,
     comment: input.comment !== undefined && input.comment !== null ? String(input.comment) : null,
     date: String(input.date ?? ''),
     mileage:
@@ -165,6 +173,7 @@ function validateFuelRecord(record: FuelRecord): void {
   const fuelCost = record.fuelCost ?? null;
   const amount = record.amount ?? null;
   const monthKey = record.monthKey?.trim() ?? null;
+  const carryoverDebtRub = record.carryoverDebtRub ?? null;
 
   if (!record.date) {
     throw new Error(
@@ -203,6 +212,10 @@ function validateFuelRecord(record: FuelRecord): void {
     throw new Error('Некорректная сумма корректировки.');
   }
 
+  if (carryoverDebtRub !== null && (Number.isNaN(carryoverDebtRub) || carryoverDebtRub < 0)) {
+    throw new Error('Некорректный остаток долга.');
+  }
+
   if (liters !== null && (Number.isNaN(liters) || liters < 0)) {
     throw new Error('Некорректное значение литров в корректировке.');
   }
@@ -214,6 +227,10 @@ function validateFuelRecord(record: FuelRecord): void {
   if (adjustmentKind === 'debt_deduction' && amount === null && liters === null) {
     throw new Error('Для вычета долга укажите сумму или литры.');
   }
+
+  if (adjustmentKind !== 'debt_deduction' && carryoverDebtRub !== null) {
+    throw new Error('Остаток долга доступен только для вычета долга.');
+  }
 }
 
 function toRequestPayload(record: FuelRecord): Record<string, unknown> {
@@ -223,6 +240,7 @@ function toRequestPayload(record: FuelRecord): Record<string, unknown> {
     adjustmentKind: record.adjustmentKind ?? null,
     monthKey: record.monthKey ?? null,
     amount: record.amount ?? null,
+    carryoverDebtRub: record.carryoverDebtRub ?? null,
     comment: record.comment ?? null,
     mileage: record.mileage ?? null,
     liters: record.liters ?? null,
@@ -269,6 +287,7 @@ function isSameFuelRecord(record: FuelRecord, target: FuelRecord): boolean {
     sameString(record.monthKey, target.monthKey) &&
     sameString(record.comment, target.comment) &&
     sameNumber(record.amount, target.amount) &&
+    sameNumber(record.carryoverDebtRub, target.carryoverDebtRub) &&
     sameNumber(record.mileage, target.mileage) &&
     sameNumber(record.liters, target.liters) &&
     sameNumber(record.fuelCost, target.fuelCost)

@@ -17,6 +17,7 @@ export type FuelRecord = {
   adjustmentKind?: 'compensation_payment' | 'debt_deduction' | null;
   monthKey?: string | null;
   amount?: number | null;
+  carryoverDebtRub?: number | null;
   comment?: string | null;
   date: string;
   mileage?: number | null;
@@ -29,6 +30,7 @@ export type FuelRecordInput = {
   adjustmentKind?: 'compensation_payment' | 'debt_deduction' | null;
   monthKey?: string | null;
   amount?: number | null;
+  carryoverDebtRub?: number | null;
   comment?: string | null;
   date: string;
   mileage?: number | null;
