@@ -450,11 +450,21 @@ const FuelSection: React.FC<FuelSectionProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <dt className="font-medium text-slate-900 dark:text-slate-100">
-                Перенос долга на след. месяц:
+                Перенос долга на след. месяц (₽):
               </dt>
               <dd className="text-base font-semibold text-red-600 dark:text-red-300">
                 {fuelSummary.totals.carryoverDebtRub > 0
-                  ? `${formatNumber(fuelSummary.totals.carryoverDebtRub, 2)} ₽ (≈ ${formatNumber(fuelSummary.totals.carryoverDebtLiters, 2)} л)`
+                  ? `${formatNumber(fuelSummary.totals.carryoverDebtRub, 2)} ₽`
+                  : '0 ₽'}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="font-medium text-slate-900 dark:text-slate-100">
+                Перенос долга на след. месяц (л):
+              </dt>
+              <dd className="text-base font-semibold text-red-600 dark:text-red-300">
+                {fuelSummary.totals.carryoverDebtRub > 0
+                  ? `≈ ${formatNumber(fuelSummary.totals.carryoverDebtLiters, 2)} л`
                   : '0 ₽'}
               </dd>
             </div>

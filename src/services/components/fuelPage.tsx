@@ -104,6 +104,22 @@ function getRecordMonthKey(record: FuelRecord): string {
   return normalizeDate(record.date).slice(0, 7);
 }
 
+function getPreviousCalendarMonthKey(monthKey: string): string | null {
+  if (!/^\d{4}-\d{2}$/.test(monthKey)) return null;
+  const [yearPart, monthPart] = monthKey.split('-');
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+  if (Number.isNaN(year) || Number.isNaN(month) || month < 1 || month > 12) {
+    return null;
+  }
+
+  const current = new Date(year, month - 1, 1);
+  current.setMonth(current.getMonth() - 1);
+  const prevYear = current.getFullYear();
+  const prevMonth = String(current.getMonth() + 1).padStart(2, '0');
+  return `${prevYear}-${prevMonth}`;
+}
+
 function isAdjustmentRecord(record: FuelRecord): boolean {
   return record.recordType === 'adjustment';
 }
@@ -512,13 +528,22 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
     const sortedMonthBuckets = Array.from(monthlyMap.values()).sort((a, b) =>
       a.sortKey.localeCompare(b.sortKey)
     );
-    let rollingCarryoverDebtRub = 0;
 
     const monthly = sortedMonthBuckets.map(month => {
         const monthAdjustments = adjustmentRecords.filter(
           item => getRecordMonthKey(item) === month.key
         );
-        const incomingCarryoverDebtRub = rollingCarryoverDebtRub;
+        const previousCalendarMonthKey = getPreviousCalendarMonthKey(month.key);
+        const previousMonthAdjustments = previousCalendarMonthKey
+          ? adjustmentRecords.filter(item => getRecordMonthKey(item) === previousCalendarMonthKey)
+          : [];
+        const previousMonthCarryovers = previousMonthAdjustments
+          .filter(item => item.adjustmentKind === 'debt_deduction')
+          .map(item => item.carryoverDebtRub)
+          .filter((value): value is number => value !== null && value !== undefined);
+        const incomingCarryoverDebtRub = previousMonthCarryovers.length > 0
+          ? previousMonthCarryovers[previousMonthCarryovers.length - 1]
+          : 0;
         const incomingCarryoverDebtLiters = incomingCarryoverDebtRub / APPROX_FUEL_PRICE_RUB;
 
         const paidCompensation = monthAdjustments
@@ -555,17 +580,16 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
           .filter((value): value is number => value !== null && value !== undefined);
         const monthCarryoverDebtRub = explicitMonthCarryoverDebtRub.length > 0
           ? explicitMonthCarryoverDebtRub[explicitMonthCarryoverDebtRub.length - 1]
-          : Math.max(incomingCarryoverDebtRub - effectiveDebtDeductionAmount, 0);
+          : 0;
         const monthCarryoverDebtLiters = monthCarryoverDebtRub / APPROX_FUEL_PRICE_RUB;
-        rollingCarryoverDebtRub = monthCarryoverDebtRub;
         const effectiveAppliedCompensation = paidCompensation + effectiveDebtDeductionAmount;
-        const remainingCompensation = compensation - effectiveAppliedCompensation;
         const isCompensationClosed = effectiveAppliedCompensation >= compensation && compensation > 0;
         const projectedDebtDeductionFromCarryover =
           effectiveDebtDeductionAmount > 0
             ? effectiveDebtDeductionAmount
             : Math.min(Math.max(compensation - paidCompensation, 0), incomingCarryoverDebtRub);
         const projectedPayout = compensation - paidCompensation - projectedDebtDeductionFromCarryover;
+        const remainingCompensation = projectedPayout;
 
         let compensationStatusLabel = 'К выплате';
         if (isCompensationClosed) {
@@ -573,7 +597,7 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
         } else if (effectiveAppliedCompensation > 0) {
           compensationStatusLabel = 'Частично закрыто';
         } else if (incomingCarryoverDebtRub > 0) {
-          compensationStatusLabel = 'Ожидается удержание';
+          compensationStatusLabel = 'Удержание';
         }
 
         return {
@@ -605,8 +629,22 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
     const fuelNorm = monthly.reduce((acc, item) => acc + item.fuelNorm, 0);
     const totalFuelCost = monthly.reduce((acc, item) => acc + item.fuelCost, 0);
     const totalCompensation = monthly.reduce((acc, item) => acc + item.compensation, 0);
-    const carryoverDebtRub =
-      monthly.length > 0 ? monthly[monthly.length - 1].monthCarryoverDebtRub : 0;
+    const orderedDebtAdjustments = [...adjustmentRecords]
+      .filter(item => item.adjustmentKind === 'debt_deduction')
+      .sort((a, b) => {
+        const monthA = getRecordMonthKey(a);
+        const monthB = getRecordMonthKey(b);
+        if (monthA !== monthB) {
+          return monthA.localeCompare(monthB);
+        }
+        return normalizeDate(a.date).localeCompare(normalizeDate(b.date));
+      });
+    const explicitCarryoverValues = orderedDebtAdjustments
+      .map(item => item.carryoverDebtRub)
+      .filter((value): value is number => value !== null && value !== undefined);
+    const carryoverDebtRub = explicitCarryoverValues.length > 0
+      ? explicitCarryoverValues[explicitCarryoverValues.length - 1]
+      : 0;
     const carryoverDebtLiters = carryoverDebtRub / APPROX_FUEL_PRICE_RUB;
 
     const totalPaidCompensation = adjustmentRecords
