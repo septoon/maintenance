@@ -13,6 +13,11 @@ export type MaintenanceRecordInput = {
 
 export type FuelRecord = {
   id?: string;
+  recordType?: 'fuel' | 'adjustment';
+  adjustmentKind?: 'compensation_payment' | 'debt_deduction' | null;
+  monthKey?: string | null;
+  amount?: number | null;
+  comment?: string | null;
   date: string;
   mileage?: number | null;
   liters?: number | null;
@@ -20,6 +25,11 @@ export type FuelRecord = {
 };
 
 export type FuelRecordInput = {
+  recordType?: 'fuel' | 'adjustment';
+  adjustmentKind?: 'compensation_payment' | 'debt_deduction' | null;
+  monthKey?: string | null;
+  amount?: number | null;
+  comment?: string | null;
   date: string;
   mileage?: number | null;
   liters?: number | null;

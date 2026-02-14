@@ -8,6 +8,7 @@ type FuelApiConfig = {
   createUrl: string;
   updateUrl: string;
   deleteUrl: string;
+  preferFileSaveMode: boolean;
 };
 
 type FuelApiOverrides = {
@@ -95,8 +96,10 @@ function resolveConfig(): FuelApiConfig {
 
   const baseUrl = ensureGasApiUrl();
   const parsed = toAbsoluteUrl(baseUrl);
+  const readPath = parsed.pathname;
   const overrides = extractOverrides(parsed);
   const readUrl = parsed.toString();
+  const preferFileSaveMode = readPath.endsWith('.json') && !overrides.post;
   const createUrl = overrides.post
     ? toAbsoluteUrl(overrides.post, parsed.origin).toString()
     : buildDefaultCreateUrl(parsed);
@@ -107,13 +110,24 @@ function resolveConfig(): FuelApiConfig {
     ? toAbsoluteUrl(overrides.delete, parsed.origin).toString()
     : createUrl;
 
-  cachedConfig = { readUrl, createUrl, updateUrl, deleteUrl };
+  cachedConfig = { readUrl, createUrl, updateUrl, deleteUrl, preferFileSaveMode };
   return cachedConfig;
 }
 
 function normalizeFuelRecord(raw: any): FuelRecord {
+  const rawRecordType = raw?.recordType === 'adjustment' ? 'adjustment' : 'fuel';
+  const rawAdjustmentKind =
+    raw?.adjustmentKind === 'compensation_payment' || raw?.adjustmentKind === 'debt_deduction'
+      ? raw.adjustmentKind
+      : null;
+
   return {
     id: raw?.id ?? raw?._id,
+    recordType: rawRecordType,
+    adjustmentKind: rawAdjustmentKind,
+    monthKey: raw?.monthKey ? String(raw.monthKey) : null,
+    amount: raw?.amount !== undefined && raw?.amount !== null ? Number(raw.amount) : null,
+    comment: raw?.comment !== undefined && raw?.comment !== null ? String(raw.comment) : null,
     date: String(raw?.date ?? ''),
     mileage: raw?.mileage !== undefined && raw?.mileage !== null ? Number(raw.mileage) : null,
     liters: raw?.liters !== undefined && raw?.liters !== null ? Number(raw.liters) : null,
@@ -122,7 +136,18 @@ function normalizeFuelRecord(raw: any): FuelRecord {
 }
 
 function normalizeFuelInput(input: FuelRecordInput): FuelRecord {
+  const recordType = input.recordType === 'adjustment' ? 'adjustment' : 'fuel';
+  const adjustmentKind =
+    input.adjustmentKind === 'compensation_payment' || input.adjustmentKind === 'debt_deduction'
+      ? input.adjustmentKind
+      : null;
+
   return {
+    recordType,
+    adjustmentKind,
+    monthKey: input.monthKey ? String(input.monthKey).slice(0, 7) : null,
+    amount: input.amount !== undefined && input.amount !== null ? Number(input.amount) : null,
+    comment: input.comment !== undefined && input.comment !== null ? String(input.comment) : null,
     date: String(input.date ?? ''),
     mileage:
       input.mileage !== undefined && input.mileage !== null ? Number(input.mileage) : null,
@@ -133,49 +158,76 @@ function normalizeFuelInput(input: FuelRecordInput): FuelRecord {
 }
 
 function validateFuelRecord(record: FuelRecord): void {
+  const recordType = record.recordType === 'adjustment' ? 'adjustment' : 'fuel';
+  const adjustmentKind = record.adjustmentKind ?? null;
   const mileage = record.mileage ?? null;
   const liters = record.liters ?? null;
   const fuelCost = record.fuelCost ?? null;
+  const amount = record.amount ?? null;
+  const monthKey = record.monthKey?.trim() ?? null;
 
   if (!record.date) {
-    throw new Error('Укажите дату записи топлива.');
+    throw new Error(
+      recordType === 'adjustment' ? 'Укажите дату корректировки.' : 'Укажите дату записи топлива.'
+    );
   }
 
-  if (mileage === null && liters === null && fuelCost === null) {
-    throw new Error('Укажите пробег, бензин или стоимость перед отправкой.');
+  if (recordType === 'fuel') {
+    if (mileage === null && liters === null && fuelCost === null) {
+      throw new Error('Укажите пробег, бензин или стоимость перед отправкой.');
+    }
+
+    if (mileage !== null && (Number.isNaN(mileage) || mileage < 0)) {
+      throw new Error('Некорректное значение пробега.');
+    }
+
+    if (liters !== null && (Number.isNaN(liters) || liters < 0)) {
+      throw new Error('Некорректное значение количества топлива.');
+    }
+
+    if (fuelCost !== null && (Number.isNaN(fuelCost) || fuelCost < 0)) {
+      throw new Error('Некорректное значение суммы заправки.');
+    }
+    return;
   }
 
-  if (mileage !== null && (Number.isNaN(mileage) || mileage < 0)) {
-    throw new Error('Некорректное значение пробега.');
+  if (adjustmentKind !== 'compensation_payment' && adjustmentKind !== 'debt_deduction') {
+    throw new Error('Укажите тип корректировки.');
+  }
+
+  if (monthKey && !/^\d{4}-\d{2}$/.test(monthKey)) {
+    throw new Error('Некорректный месяц корректировки.');
+  }
+
+  if (amount !== null && (Number.isNaN(amount) || amount < 0)) {
+    throw new Error('Некорректная сумма корректировки.');
   }
 
   if (liters !== null && (Number.isNaN(liters) || liters < 0)) {
-    throw new Error('Некорректное значение количества топлива.');
+    throw new Error('Некорректное значение литров в корректировке.');
   }
 
-  if (fuelCost !== null && (Number.isNaN(fuelCost) || fuelCost < 0)) {
-    throw new Error('Некорректное значение суммы заправки.');
+  if (adjustmentKind === 'compensation_payment' && amount === null) {
+    throw new Error('Для выплаты укажите сумму.');
+  }
+
+  if (adjustmentKind === 'debt_deduction' && amount === null && liters === null) {
+    throw new Error('Для вычета долга укажите сумму или литры.');
   }
 }
 
 function toRequestPayload(record: FuelRecord): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
-    date: record.date
+  return {
+    date: record.date,
+    recordType: record.recordType ?? 'fuel',
+    adjustmentKind: record.adjustmentKind ?? null,
+    monthKey: record.monthKey ?? null,
+    amount: record.amount ?? null,
+    comment: record.comment ?? null,
+    mileage: record.mileage ?? null,
+    liters: record.liters ?? null,
+    fuelCost: record.fuelCost ?? null
   };
-
-  if (record.mileage !== null) {
-    payload.mileage = record.mileage;
-  }
-
-  if (record.liters !== null) {
-    payload.liters = record.liters;
-  }
-
-  if (record.fuelCost !== null) {
-    payload.fuelCost = record.fuelCost;
-  }
-
-  return payload;
 }
 
 function appendIdToUrl(baseUrl: string, id: string): string {
@@ -193,13 +245,30 @@ function sameNumber(left?: number | null, right?: number | null): boolean {
   return Number(a) === Number(b);
 }
 
+function sameString(left?: string | null, right?: string | null): boolean {
+  const a = left ?? null;
+  const b = right ?? null;
+  return a === b;
+}
+
 function isSameFuelRecord(record: FuelRecord, target: FuelRecord): boolean {
   if (target.id && record.id && String(target.id) === String(record.id)) {
     return true;
   }
 
+  const recordType = record.recordType ?? 'fuel';
+  const targetType = target.recordType ?? 'fuel';
+
+  if (recordType !== targetType) {
+    return false;
+  }
+
   return (
     record.date === target.date &&
+    sameString(record.adjustmentKind, target.adjustmentKind) &&
+    sameString(record.monthKey, target.monthKey) &&
+    sameString(record.comment, target.comment) &&
+    sameNumber(record.amount, target.amount) &&
     sameNumber(record.mileage, target.mileage) &&
     sameNumber(record.liters, target.liters) &&
     sameNumber(record.fuelCost, target.fuelCost)
@@ -284,11 +353,34 @@ export async function fetchFuelRecords(): Promise<FuelRecord[]> {
 }
 
 export async function createFuelRecord(input: FuelRecordInput): Promise<FuelRecord> {
-  const { createUrl, readUrl } = resolveConfig();
+  const { createUrl, readUrl, preferFileSaveMode } = resolveConfig();
   const normalized = normalizeFuelInput(input);
   validateFuelRecord(normalized);
 
   const payload = toRequestPayload(normalized);
+
+  if (preferFileSaveMode) {
+    try {
+      const existing = await readRawFuelRecords(readUrl);
+      const updated = [...existing, payload];
+      await saveRawFuelRecords(readUrl, updated);
+      return normalized;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const message = status
+          ? `Не удалось сохранить данные топлива (${status})`
+          : 'Не удалось сохранить данные топлива.';
+        throw new Error(message);
+      }
+
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error('Не удалось сохранить данные топлива.');
+    }
+  }
 
   try {
     const response = await axios.post(createUrl, payload, {

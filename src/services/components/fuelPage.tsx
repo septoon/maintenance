@@ -13,8 +13,18 @@ type FuelPageProps = {
   onClose: () => void;
 };
 
+type FuelAdjustmentKind = 'compensation_payment' | 'debt_deduction';
+
+type AdjustmentFormState = {
+  monthKey: string;
+  amount: string;
+  liters: string;
+  comment: string;
+};
+
 const FUEL_CONSUMPTION_RATE = 9.4;
 const FUEL_CONSUMPTION_RATE_INCREASE = 0.07;
+const APPROX_FUEL_PRICE_RUB = 76;
 const FUEL_CONSUMPTION_RATE_DATES = new Set([
   '2025-12-31',
   '2026-01-31',
@@ -41,6 +51,12 @@ const initialFuelFormState = {
   liters: '',
   fuelCost: ''
 };
+const initialAdjustmentFormState: AdjustmentFormState = {
+  monthKey: '',
+  amount: '',
+  liters: '',
+  comment: ''
+};
 
 function formatNumber(value: number, maximumFractionDigits = 1): string {
   return value.toLocaleString('ru-RU', {
@@ -58,6 +74,15 @@ function formatDisplayDate(value: string): string {
   const [year, month, day] = value.split('-');
   if (!year || !month || !day) return value;
   return `${day}.${month}.${year}`;
+}
+
+function formatMonthLabel(value: string): string {
+  const [year, month] = value.split('-');
+  const monthIndex = Number(month) - 1;
+  if (!year || Number.isNaN(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+    return value || 'Без месяца';
+  }
+  return `${MONTH_LABELS[monthIndex]} ${year}`;
 }
 
 function getMonthInfo(date?: string): { key: string; label: string } | null {
@@ -87,6 +112,21 @@ function getFuelConsumptionRate(date?: string): number {
   return FUEL_CONSUMPTION_RATE;
 }
 
+function getRecordMonthKey(record: FuelRecord): string {
+  if (record.monthKey && /^\d{4}-\d{2}$/.test(record.monthKey)) {
+    return record.monthKey;
+  }
+  return normalizeDate(record.date).slice(0, 7);
+}
+
+function isAdjustmentRecord(record: FuelRecord): boolean {
+  return record.recordType === 'adjustment';
+}
+
+function isFuelRecord(record: FuelRecord): boolean {
+  return !isAdjustmentRecord(record);
+}
+
 const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
   const [fuelRecords, setFuelRecords] = useState<FuelRecord[]>([]);
   const [fuelLoading, setFuelLoading] = useState(false);
@@ -96,6 +136,12 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
   const [fuelSubmitting, setFuelSubmitting] = useState(false);
   const [fuelFormError, setFuelFormError] = useState<string | null>(null);
   const [editingFuelRecord, setEditingFuelRecord] = useState<FuelRecord | null>(null);
+  const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false);
+  const [adjustmentKind, setAdjustmentKind] = useState<FuelAdjustmentKind>('compensation_payment');
+  const [adjustmentForm, setAdjustmentForm] = useState(initialAdjustmentFormState);
+  const [adjustmentSubmitting, setAdjustmentSubmitting] = useState(false);
+  const [adjustmentFormError, setAdjustmentFormError] = useState<string | null>(null);
+  const [editingAdjustmentRecord, setEditingAdjustmentRecord] = useState<FuelRecord | null>(null);
   const [fuelActionNotice, setFuelActionNotice] = useState<string | null>(null);
 
   const gasApiIsConfigured = Boolean(process.env.REACT_APP_API_GAS);
@@ -137,6 +183,13 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
     setFuelForm(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleAdjustmentFormChange = (
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = event.target;
+    setAdjustmentForm(prev => ({ ...prev, [name]: value }));
+  };
+
   const openCreateFuelDialog = () => {
     setEditingFuelRecord(null);
     setFuelForm(initialFuelFormState);
@@ -157,6 +210,32 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
     });
     setFuelFormError(null);
     setFuelDialogOpen(true);
+  };
+
+  const openCreateAdjustmentDialog = (kind: FuelAdjustmentKind) => {
+    setEditingAdjustmentRecord(null);
+    setAdjustmentKind(kind);
+    setAdjustmentForm(initialAdjustmentFormState);
+    setAdjustmentFormError(null);
+    setAdjustmentDialogOpen(true);
+  };
+
+  const openEditAdjustmentDialog = (record: FuelRecord) => {
+    const kind = record.adjustmentKind === 'debt_deduction'
+      ? 'debt_deduction'
+      : 'compensation_payment';
+    setEditingAdjustmentRecord(record);
+    setAdjustmentKind(kind);
+    setAdjustmentForm({
+      monthKey: getRecordMonthKey(record),
+      amount:
+        record.amount !== null && record.amount !== undefined ? String(record.amount) : '',
+      liters:
+        record.liters !== null && record.liters !== undefined ? String(record.liters) : '',
+      comment: record.comment ?? ''
+    });
+    setAdjustmentFormError(null);
+    setAdjustmentDialogOpen(true);
   };
 
   const openFuelDatePicker = (event: React.MouseEvent<HTMLInputElement>) => {
@@ -213,6 +292,7 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
       setFuelFormError(null);
       if (editingFuelRecord) {
         await updateFuelRecord(editingFuelRecord, {
+          recordType: 'fuel',
           date,
           mileage,
           liters,
@@ -220,6 +300,7 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
         });
       } else {
         await createFuelRecord({
+          recordType: 'fuel',
           date,
           mileage,
           liters,
@@ -242,6 +323,87 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
     }
   };
 
+  const handleAdjustmentSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!gasApiIsConfigured) {
+      setAdjustmentFormError('Добавьте REACT_APP_API_GAS в .env перед использованием расчёта топлива.');
+      return;
+    }
+
+    const monthKey = adjustmentForm.monthKey.trim();
+    const amountRaw = adjustmentForm.amount.trim().replace(',', '.');
+    const litersRaw = adjustmentForm.liters.trim().replace(',', '.');
+    const comment = adjustmentForm.comment.trim();
+
+    if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) {
+      setAdjustmentFormError('Укажите месяц корректировки.');
+      return;
+    }
+
+    const amount = amountRaw ? Number(amountRaw) : null;
+    const liters = litersRaw ? Number(litersRaw) : null;
+
+    if (amount !== null && (Number.isNaN(amount) || amount < 0)) {
+      setAdjustmentFormError('Сумма должна быть неотрицательным числом.');
+      return;
+    }
+
+    if (liters !== null && (Number.isNaN(liters) || liters < 0)) {
+      setAdjustmentFormError('Литры должны быть неотрицательным числом.');
+      return;
+    }
+
+    if (adjustmentKind === 'compensation_payment' && amount === null) {
+      setAdjustmentFormError('Для выплаты укажите сумму.');
+      return;
+    }
+
+    if (adjustmentKind === 'debt_deduction' && amount === null && liters === null) {
+      setAdjustmentFormError('Для вычета долга укажите сумму или литры.');
+      return;
+    }
+
+    const payload = {
+      recordType: 'adjustment' as const,
+      adjustmentKind,
+      monthKey,
+      date: `${monthKey}-01`,
+      amount,
+      liters: adjustmentKind === 'debt_deduction' ? liters : null,
+      mileage: null,
+      fuelCost: null,
+      comment: comment || null
+    };
+
+    try {
+      setAdjustmentSubmitting(true);
+      setAdjustmentFormError(null);
+
+      if (editingAdjustmentRecord) {
+        await updateFuelRecord(editingAdjustmentRecord, payload);
+      } else {
+        await createFuelRecord(payload);
+      }
+
+      await loadFuelRecords();
+      setAdjustmentForm(initialAdjustmentFormState);
+      setAdjustmentDialogOpen(false);
+      setEditingAdjustmentRecord(null);
+      setFuelActionNotice(
+        editingAdjustmentRecord
+          ? 'Корректировка компенсации обновлена.'
+          : 'Корректировка компенсации добавлена.'
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Не удалось сохранить корректировку компенсации.';
+      setAdjustmentFormError(message);
+    } finally {
+      setAdjustmentSubmitting(false);
+    }
+  };
+
   const handleFuelDelete = async (record: FuelRecord) => {
     const confirmed = window.confirm('Удалить запись топлива?');
     if (!confirmed) return;
@@ -258,19 +420,63 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
     }
   };
 
+  const handleAdjustmentDelete = async (record: FuelRecord) => {
+    const confirmed = window.confirm('Удалить корректировку компенсации?');
+    if (!confirmed) return;
+
+    try {
+      setFuelError(null);
+      await deleteFuelRecord(record);
+      await loadFuelRecords();
+      setFuelActionNotice('Корректировка компенсации удалена.');
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Не удалось удалить корректировку компенсации.';
+      setFuelError(message);
+    }
+  };
+
+  const fuelOnlyRecords = useMemo(
+    () => fuelRecords.filter(isFuelRecord),
+    [fuelRecords]
+  );
+
+  const adjustmentRecords = useMemo(
+    () => fuelRecords.filter(isAdjustmentRecord),
+    [fuelRecords]
+  );
+
   const orderedFuelRecords = useMemo(
     () =>
-      [...fuelRecords].sort((a, b) => {
+      [...fuelOnlyRecords].sort((a, b) => {
         if (!a.date && !b.date) return 0;
         if (!a.date) return 1;
         if (!b.date) return -1;
         return a.date < b.date ? 1 : -1;
       }),
-    [fuelRecords]
+    [fuelOnlyRecords]
+  );
+
+  const orderedAdjustmentRecords = useMemo(
+    () =>
+      [...adjustmentRecords].sort((a, b) => {
+        const monthA = getRecordMonthKey(a);
+        const monthB = getRecordMonthKey(b);
+        if (monthA !== monthB) {
+          return monthA < monthB ? 1 : -1;
+        }
+        const dateA = normalizeDate(a.date);
+        const dateB = normalizeDate(b.date);
+        if (dateA !== dateB) {
+          return dateA < dateB ? 1 : -1;
+        }
+        return 0;
+      }),
+    [adjustmentRecords]
   );
 
   const fuelSummary = useMemo(() => {
-    if (!gasApiIsConfigured || fuelRecords.length === 0) {
+    if (!gasApiIsConfigured) {
       return {
         monthly: [],
         totals: {
@@ -279,15 +485,22 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
           fuelNorm: 0,
           totalFuelCost: 0,
           totalCompensation: 0,
+          totalPaidCompensation: 0,
+          totalDebtDeductionAmount: 0,
+          approxDebtDeductionAmount: 0,
+          totalDebtDeductionLiters: 0,
+          netCompensation: 0,
           fuelDiff: 0,
-          diffLabel: ''
+          diffLabel: '',
+          adjustedFuelDiff: 0,
+          adjustedDiffLabel: ''
         },
         explanation: '',
         hasData: false
       };
     }
 
-    const orderedFuelRecords = [...fuelRecords].sort((a, b) => {
+    const orderedFuelItems = [...fuelOnlyRecords].sort((a, b) => {
       if (!a.date && !b.date) return 0;
       if (!a.date) return -1;
       if (!b.date) return 1;
@@ -307,7 +520,7 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
       }
     >();
 
-    orderedFuelRecords.forEach(item => {
+    orderedFuelItems.forEach(item => {
       const monthInfo = getMonthInfo(item.date);
       const key = monthInfo?.key ?? 'unknown';
       const sortKey = monthInfo?.key ?? '9999-99';
@@ -336,18 +549,60 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
     const monthly = Array.from(monthlyMap.values())
       .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
       .map(month => {
+        const monthAdjustments = adjustmentRecords.filter(
+          item => getRecordMonthKey(item) === month.key
+        );
+        const paidCompensation = monthAdjustments
+          .filter(item => item.adjustmentKind === 'compensation_payment')
+          .reduce((acc, item) => acc + (item.amount ?? 0), 0);
+        const monthDebtAdjustments = monthAdjustments.filter(
+          item => item.adjustmentKind === 'debt_deduction'
+        );
+        const debtDeductionAmount = monthDebtAdjustments.reduce(
+          (acc, item) => acc + (item.amount ?? 0),
+          0
+        );
+        const debtDeductionLiters = monthDebtAdjustments.reduce(
+          (acc, item) => acc + (item.liters ?? 0),
+          0
+        );
+
         const fuelDiff = month.fuelNorm - month.totalLiters;
         const diffSign = fuelDiff > 0 ? '+' : fuelDiff < 0 ? '-' : '';
         const diffLabel = `${diffSign}${formatNumber(Math.abs(fuelDiff))} л`;
         const approvedRate =
           month.totalMileage > 0 ? (month.fuelNorm / month.totalMileage) * 100 : 0;
         const compensation = month.totalMileage * 5;
+        const effectiveDebtDeductionAmount = monthDebtAdjustments.reduce((acc, item) => {
+          if (item.amount !== null && item.amount !== undefined) {
+            return acc + item.amount;
+          }
+          return acc + (item.liters ?? 0) * APPROX_FUEL_PRICE_RUB;
+        }, 0);
+        const effectiveAppliedCompensation = paidCompensation + effectiveDebtDeductionAmount;
+        const remainingCompensation = compensation - effectiveAppliedCompensation;
+        const isCompensationClosed = effectiveAppliedCompensation >= compensation && compensation > 0;
+
+        let compensationStatusLabel = 'Открыто';
+        if (isCompensationClosed) {
+          compensationStatusLabel = 'Закрыто';
+        } else if (effectiveAppliedCompensation > 0) {
+          compensationStatusLabel = 'Частично закрыто';
+        }
+
         return {
           ...month,
           fuelDiff,
           diffLabel,
           approvedRate,
-          compensation
+          compensation,
+          paidCompensation,
+          debtDeductionAmount,
+          debtDeductionLiters,
+          effectiveAppliedCompensation,
+          remainingCompensation,
+          isCompensationClosed,
+          compensationStatusLabel
         };
       });
 
@@ -356,15 +611,46 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
     const fuelNorm = monthly.reduce((acc, item) => acc + item.fuelNorm, 0);
     const totalFuelCost = monthly.reduce((acc, item) => acc + item.fuelCost, 0);
     const totalCompensation = monthly.reduce((acc, item) => acc + item.compensation, 0);
+
+    const totalPaidCompensation = adjustmentRecords
+      .filter(item => item.adjustmentKind === 'compensation_payment')
+      .reduce((acc, item) => acc + (item.amount ?? 0), 0);
+
+    const debtAdjustments = adjustmentRecords.filter(
+      item => item.adjustmentKind === 'debt_deduction'
+    );
+    const totalDebtDeductionAmount = debtAdjustments.reduce(
+      (acc, item) => acc + (item.amount ?? 0),
+      0
+    );
+    const totalDebtDeductionLiters = debtAdjustments.reduce(
+      (acc, item) => acc + (item.liters ?? 0),
+      0
+    );
+    const approxDebtDeductionAmount = totalDebtDeductionLiters * APPROX_FUEL_PRICE_RUB;
+    const effectiveDebtDeductionAmount = debtAdjustments.reduce((acc, item) => {
+      if (item.amount !== null && item.amount !== undefined) {
+        return acc + item.amount;
+      }
+      return acc + (item.liters ?? 0) * APPROX_FUEL_PRICE_RUB;
+    }, 0);
+
+    const netCompensation =
+      totalCompensation - totalPaidCompensation - effectiveDebtDeductionAmount;
+
     const fuelDiff = fuelNorm - totalLiters;
     const diffSign = fuelDiff > 0 ? '+' : fuelDiff < 0 ? '-' : '';
     const diffLabel = `${diffSign}${formatNumber(Math.abs(fuelDiff))} л`;
 
+    const adjustedFuelDiff = fuelDiff + totalDebtDeductionLiters;
+    const adjustedDiffSign = adjustedFuelDiff > 0 ? '+' : adjustedFuelDiff < 0 ? '-' : '';
+    const adjustedDiffLabel = `${adjustedDiffSign}${formatNumber(Math.abs(adjustedFuelDiff))} л`;
+
     let explanation = 'Расход соответствует норме.';
-    if (fuelDiff < 0) {
-      explanation = `Перерасход топлива на ${formatNumber(Math.abs(fuelDiff))} л.`;
-    } else if (fuelDiff > 0) {
-      explanation = `Остаток топлива по норме ${formatNumber(Math.abs(fuelDiff))} л.`;
+    if (adjustedFuelDiff < 0) {
+      explanation = `Перерасход топлива ${formatNumber(Math.abs(adjustedFuelDiff))} л (с учётом вычетов долга).`;
+    } else if (adjustedFuelDiff > 0) {
+      explanation = `Остаток по норме ${formatNumber(Math.abs(adjustedFuelDiff))} л (с учётом вычетов долга).`;
     }
 
     return {
@@ -375,13 +661,20 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
         fuelNorm,
         totalFuelCost,
         totalCompensation,
+        totalPaidCompensation,
+        totalDebtDeductionAmount,
+        approxDebtDeductionAmount,
+        totalDebtDeductionLiters,
+        netCompensation,
         fuelDiff,
-        diffLabel
+        diffLabel,
+        adjustedFuelDiff,
+        adjustedDiffLabel
       },
       explanation,
-      hasData: monthly.length > 0
+      hasData: monthly.length > 0 || adjustmentRecords.length > 0
     };
-  }, [fuelRecords, gasApiIsConfigured]);
+  }, [fuelOnlyRecords, adjustmentRecords, gasApiIsConfigured]);
 
   const cardClass =
     'rounded-3xl border border-white/40 bg-white/85 p-6 shadow-card backdrop-blur-lg dark:border-slate-800/70 dark:bg-slate-900/80 dark:shadow-[0_20px_50px_rgba(0,0,0,0.35)]';
@@ -428,80 +721,178 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
           />
 
           {gasApiIsConfigured && (
-            <section className={cardClass}>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                Записи заправок
-              </h3>
+            <>
+              <section className={cardClass}>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  Корректировки компенсации
+                </h3>
 
-              {orderedFuelRecords.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-100/80 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:border-slate-800/70 dark:bg-slate-900/70 dark:text-slate-300">
-                  Пока нет записей.
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openCreateAdjustmentDialog('compensation_payment')}
+                    className={`${primaryButtonClass} w-full min-w-0 px-3 text-[15px] leading-tight`}
+                  >
+                    Выплата
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openCreateAdjustmentDialog('debt_deduction')}
+                    className="inline-flex w-full min-w-0 items-center justify-center rounded-2xl border border-amber-300/80 bg-amber-50/80 px-3 py-3 text-[15px] font-semibold leading-tight text-amber-800 transition hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 dark:border-amber-400/40 dark:bg-amber-900/30 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                  >
+                    Вычет долга
+                  </button>
                 </div>
-              ) : (
-                <ul className="mt-4 space-y-3">
-                  {orderedFuelRecords.map((record, index) => (
-                    <li
-                      key={
-                        record.id ??
-                        `${record.date}-${record.mileage ?? 'x'}-${record.liters ?? 'x'}-${record.fuelCost ?? 'x'}-${index}`
-                      }
-                      className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/70"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                          {formatDisplayDate(record.date)}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openEditFuelDialog(record)}
-                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300/80 bg-white/80 text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-white/15 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:bg-slate-800"
-                            aria-label="Редактировать запись топлива"
-                          >
-                            <i className="pi pi-pencil text-sm" aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleFuelDelete(record)}
-                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-rose-300/80 bg-rose-50/80 text-rose-700 transition hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 dark:border-rose-500/40 dark:bg-rose-900/30 dark:text-rose-200 dark:hover:bg-rose-900/40"
-                            aria-label="Удалить запись топлива"
-                          >
-                            <i className="pi pi-trash text-sm" aria-hidden="true" />
-                          </button>
-                        </div>
-                      </div>
 
-                      <dl className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-300">
-                        <div className="flex items-center justify-between">
-                          <dt>Пробег</dt>
-                          <dd className="font-semibold text-slate-900 dark:text-slate-100">
-                            {record.mileage !== null && record.mileage !== undefined
-                              ? `${formatNumber(record.mileage, 0)} км`
-                              : '—'}
-                          </dd>
+                {orderedAdjustmentRecords.length === 0 ? (
+                  <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-100/80 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:border-slate-800/70 dark:bg-slate-900/70 dark:text-slate-300">
+                    Пока нет корректировок.
+                  </div>
+                ) : (
+                  <ul className="mt-4 space-y-3">
+                    {orderedAdjustmentRecords.map((record, index) => (
+                      <li
+                        key={
+                          record.id ??
+                          `${record.recordType}-${record.adjustmentKind}-${getRecordMonthKey(record)}-${record.amount ?? 'x'}-${record.liters ?? 'x'}-${index}`
+                        }
+                        className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/70"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                              {formatMonthLabel(getRecordMonthKey(record))}
+                            </div>
+                            <div className="text-xs text-slate-600 dark:text-slate-400">
+                              {record.adjustmentKind === 'debt_deduction'
+                                ? 'Вычет долга'
+                                : 'Выплата компенсации'}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEditAdjustmentDialog(record)}
+                              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300/80 bg-white/80 text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-white/15 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                              aria-label="Редактировать корректировку компенсации"
+                            >
+                              <i className="pi pi-pencil text-sm" aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAdjustmentDelete(record)}
+                              className="flex h-8 w-8 items-center justify-center rounded-xl border border-rose-300/80 bg-rose-50/80 text-rose-700 transition hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 dark:border-rose-500/40 dark:bg-rose-900/30 dark:text-rose-200 dark:hover:bg-rose-900/40"
+                              aria-label="Удалить корректировку компенсации"
+                            >
+                              <i className="pi pi-trash text-sm" aria-hidden="true" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <dt>Литры</dt>
-                          <dd className="font-semibold text-slate-900 dark:text-slate-100">
-                            {record.liters !== null && record.liters !== undefined
-                              ? `${formatNumber(record.liters, 2)} л`
-                              : '—'}
-                          </dd>
+
+                        <dl className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                          <div className="flex items-center justify-between">
+                            <dt>Сумма</dt>
+                            <dd className="font-semibold text-slate-900 dark:text-slate-100">
+                              {record.amount !== null && record.amount !== undefined
+                                ? `${formatNumber(record.amount, 2)} ₽`
+                                : '—'}
+                            </dd>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <dt>Литры</dt>
+                            <dd className="font-semibold text-slate-900 dark:text-slate-100">
+                              {record.liters !== null && record.liters !== undefined
+                                ? `${formatNumber(record.liters, 2)} л`
+                                : '—'}
+                            </dd>
+                          </div>
+                          {record.comment && (
+                            <div className="text-xs text-slate-600 dark:text-slate-400">
+                              {record.comment}
+                            </div>
+                          )}
+                        </dl>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className={cardClass}>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  Записи заправок
+                </h3>
+
+                {orderedFuelRecords.length === 0 ? (
+                  <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-100/80 px-4 py-3 text-center text-sm font-medium text-slate-600 dark:border-slate-800/70 dark:bg-slate-900/70 dark:text-slate-300">
+                    Пока нет записей.
+                  </div>
+                ) : (
+                  <ul className="mt-4 space-y-3">
+                    {orderedFuelRecords.map((record, index) => (
+                      <li
+                        key={
+                          record.id ??
+                          `${record.date}-${record.mileage ?? 'x'}-${record.liters ?? 'x'}-${record.fuelCost ?? 'x'}-${index}`
+                        }
+                        className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/70"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                            {formatDisplayDate(record.date)}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEditFuelDialog(record)}
+                              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300/80 bg-white/80 text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-white/15 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                              aria-label="Редактировать запись топлива"
+                            >
+                              <i className="pi pi-pencil text-sm" aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleFuelDelete(record)}
+                              className="flex h-8 w-8 items-center justify-center rounded-xl border border-rose-300/80 bg-rose-50/80 text-rose-700 transition hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 dark:border-rose-500/40 dark:bg-rose-900/30 dark:text-rose-200 dark:hover:bg-rose-900/40"
+                              aria-label="Удалить запись топлива"
+                            >
+                              <i className="pi pi-trash text-sm" aria-hidden="true" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <dt>Сумма</dt>
-                          <dd className="font-semibold text-slate-900 dark:text-slate-100">
-                            {record.fuelCost !== null && record.fuelCost !== undefined
-                              ? `${formatNumber(record.fuelCost, 2)} ₽`
-                              : '—'}
-                          </dd>
-                        </div>
-                      </dl>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+
+                        <dl className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                          <div className="flex items-center justify-between">
+                            <dt>Пробег</dt>
+                            <dd className="font-semibold text-slate-900 dark:text-slate-100">
+                              {record.mileage !== null && record.mileage !== undefined
+                                ? `${formatNumber(record.mileage, 0)} км`
+                                : '—'}
+                            </dd>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <dt>Литры</dt>
+                            <dd className="font-semibold text-slate-900 dark:text-slate-100">
+                              {record.liters !== null && record.liters !== undefined
+                                ? `${formatNumber(record.liters, 2)} л`
+                                : '—'}
+                            </dd>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <dt>Сумма</dt>
+                            <dd className="font-semibold text-slate-900 dark:text-slate-100">
+                              {record.fuelCost !== null && record.fuelCost !== undefined
+                                ? `${formatNumber(record.fuelCost, 2)} ₽`
+                                : '—'}
+                            </dd>
+                          </div>
+                        </dl>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </>
           )}
         </div>
       </div>
@@ -609,6 +1000,108 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
         {fuelFormError && (
           <div className="mt-4 rounded-2xl border border-red-400/45 bg-red-100/70 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/50 dark:bg-red-950/40 dark:text-red-200">
             {fuelFormError}
+          </div>
+        )}
+      </Dialog>
+
+      <Dialog
+        header={
+          editingAdjustmentRecord
+            ? 'Редактировать корректировку'
+            : adjustmentKind === 'debt_deduction'
+              ? 'Добавить вычет долга'
+              : 'Добавить выплату'
+        }
+        visible={adjustmentDialogOpen}
+        position="bottom"
+        modal
+        onHide={() => {
+          setAdjustmentDialogOpen(false);
+          setEditingAdjustmentRecord(null);
+          setAdjustmentFormError(null);
+        }}
+        style={dialogStyle}
+        className="p-0"
+        headerClassName="bg-white/90 text-slate-900 dark:bg-slate-900/90 dark:text-slate-100"
+        contentClassName="bg-white/90 text-slate-900 dark:bg-slate-900/90 dark:text-slate-100"
+      >
+        <form className="mb-4 flex flex-col gap-4" onSubmit={handleAdjustmentSubmit}>
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+            Месяц
+            <input
+              type="month"
+              name="monthKey"
+              value={adjustmentForm.monthKey}
+              onChange={handleAdjustmentFormChange}
+              onClick={openFuelDatePicker}
+              required
+              disabled={adjustmentSubmitting || !gasApiIsConfigured}
+              className={fieldClasses}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+            {adjustmentKind === 'debt_deduction' ? 'Сумма вычета (₽)' : 'Сумма выплаты (₽)'}
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              name="amount"
+              value={adjustmentForm.amount}
+              onChange={handleAdjustmentFormChange}
+              disabled={adjustmentSubmitting || !gasApiIsConfigured}
+              className={fieldClasses}
+              placeholder="0.00"
+            />
+          </label>
+
+          {adjustmentKind === 'debt_deduction' && (
+            <label className="flex flex-col gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+              Литры вычета
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                name="liters"
+                value={adjustmentForm.liters}
+                onChange={handleAdjustmentFormChange}
+                disabled={adjustmentSubmitting || !gasApiIsConfigured}
+                className={fieldClasses}
+                placeholder="0.00"
+              />
+            </label>
+          )}
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+            Комментарий (опционально)
+            <textarea
+              name="comment"
+              value={adjustmentForm.comment}
+              onChange={handleAdjustmentFormChange}
+              disabled={adjustmentSubmitting || !gasApiIsConfigured}
+              className={`${fieldClasses} min-h-[88px] resize-y`}
+              placeholder="Например: выплата за сентябрь"
+            />
+          </label>
+
+          <button
+            className={primaryButtonClass}
+            type="submit"
+            disabled={adjustmentSubmitting || !gasApiIsConfigured}
+          >
+            {adjustmentSubmitting
+              ? 'Сохраняем…'
+              : editingAdjustmentRecord
+                ? 'Сохранить изменения'
+                : 'Добавить корректировку'}
+          </button>
+        </form>
+
+        {adjustmentFormError && (
+          <div className="mt-4 rounded-2xl border border-red-400/45 bg-red-100/70 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/50 dark:bg-red-950/40 dark:text-red-200">
+            {adjustmentFormError}
           </div>
         )}
       </Dialog>

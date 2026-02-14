@@ -11,6 +11,13 @@ type FuelSummaryMonth = {
   diffLabel: string;
   approvedRate: number;
   compensation: number;
+  paidCompensation: number;
+  debtDeductionAmount: number;
+  debtDeductionLiters: number;
+  effectiveAppliedCompensation: number;
+  remainingCompensation: number;
+  isCompensationClosed: boolean;
+  compensationStatusLabel: string;
 };
 
 type FuelSummaryTotals = {
@@ -19,8 +26,15 @@ type FuelSummaryTotals = {
   fuelNorm: number;
   totalFuelCost: number;
   totalCompensation: number;
+  totalPaidCompensation: number;
+  totalDebtDeductionAmount: number;
+  approxDebtDeductionAmount: number;
+  totalDebtDeductionLiters: number;
+  netCompensation: number;
   fuelDiff: number;
   diffLabel: string;
+  adjustedFuelDiff: number;
+  adjustedDiffLabel: string;
 };
 
 type FuelSummary = {
@@ -59,9 +73,9 @@ const FuelSection: React.FC<FuelSectionProps> = ({
         </h2>
 
         <span
-              className={`text-base font-semibold ${fuelSummary.totals.fuelDiff < 0 ? 'text-red-600 dark:text-red-400' : fuelSummary.totals.fuelDiff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
+              className={`text-base font-semibold ${fuelSummary.totals.adjustedFuelDiff < 0 ? 'text-red-600 dark:text-red-400' : fuelSummary.totals.adjustedFuelDiff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
             >
-              {fuelSummary.totals.fuelDiff < 0 ? 'долг' : 'в плюсе'} {fuelSummary.totals.diffLabel}
+              {fuelSummary.totals.adjustedFuelDiff < 0 ? 'долг' : 'в плюсе'} {fuelSummary.totals.adjustedDiffLabel}
             </span>
       </header>
 
@@ -82,7 +96,7 @@ const FuelSection: React.FC<FuelSectionProps> = ({
     )}
 
     {gasApiIsConfigured && !fuelLoading && !fuelError && !fuelSummary.hasData && (
-      <div className={noticeClass}>Пока нет данных о заправках.</div>
+      <div className={noticeClass}>Пока нет данных по заправкам и корректировкам.</div>
     )}
 
     {gasApiIsConfigured && fuelSummary.hasData && (
@@ -101,9 +115,22 @@ const FuelSection: React.FC<FuelSectionProps> = ({
                   className="flex w-full items-center justify-between text-left"
                   aria-expanded={isExpanded}
                 >
-                  <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                    {month.label}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                      {month.label}
+                    </h3>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        month.isCompensationClosed
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                          : month.effectiveAppliedCompensation > 0
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                            : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                      }`}
+                    >
+                      {month.compensationStatusLabel}
+                    </span>
+                  </div>
                   <span className="flex items-center gap-3">
                     <span
                       className={`text-sm font-light ${month.fuelDiff < 0 ? 'text-red-600 dark:text-red-400' : month.fuelDiff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
@@ -167,6 +194,28 @@ const FuelSection: React.FC<FuelSectionProps> = ({
                         {formatNumber(month.compensation, 0)} ₽
                       </dd>
                     </div>
+                    {month.effectiveAppliedCompensation > 0 && (
+                      <div className="flex items-center justify-between">
+                        <dt className="font-medium text-slate-900 dark:text-slate-100">
+                          Учтено по месяцу:
+                        </dt>
+                        <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                          {formatNumber(month.effectiveAppliedCompensation, 2)} ₽
+                        </dd>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <dt className="font-medium text-slate-900 dark:text-slate-100">
+                        Остаток по месяцу:
+                      </dt>
+                      <dd
+                        className={`text-base font-semibold ${month.remainingCompensation <= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}
+                      >
+                        {month.remainingCompensation <= 0
+                          ? '0 ₽ (закрыто)'
+                          : `${formatNumber(month.remainingCompensation, 2)} ₽`}
+                      </dd>
+                    </div>
                   </dl>
                 )}
               </div>
@@ -204,10 +253,54 @@ const FuelSection: React.FC<FuelSectionProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <dt className="font-medium text-slate-900 dark:text-slate-100">
-                Компенсация ГСМ:
+                Начислено ГСМ:
               </dt>
               <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 {formatNumber(fuelSummary.totals.totalCompensation, 0)} ₽
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="font-medium text-slate-900 dark:text-slate-100">
+                Выплачено:
+              </dt>
+              <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                {formatNumber(fuelSummary.totals.totalPaidCompensation, 2)} ₽
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="font-medium text-slate-900 dark:text-slate-100">
+                Вычтено долга (₽):
+              </dt>
+              <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                ≈ {formatNumber(fuelSummary.totals.approxDebtDeductionAmount, 2)} ₽
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="font-medium text-slate-900 dark:text-slate-100">
+                Вычтено долга (л):
+              </dt>
+              <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                {formatNumber(fuelSummary.totals.totalDebtDeductionLiters, 2)} л
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="font-medium text-slate-900 dark:text-slate-100">
+                Остаток к выплате:
+              </dt>
+              <dd
+                className={`text-base font-semibold ${fuelSummary.totals.netCompensation < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-300'}`}
+              >
+                {formatNumber(fuelSummary.totals.netCompensation, 2)} ₽
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="font-medium text-slate-900 dark:text-slate-100">
+                Баланс топлива после вычетов:
+              </dt>
+              <dd
+                className={`text-base font-semibold ${fuelSummary.totals.adjustedFuelDiff < 0 ? 'text-red-600 dark:text-red-400' : fuelSummary.totals.adjustedFuelDiff > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-100'}`}
+              >
+                {fuelSummary.totals.adjustedDiffLabel}
               </dd>
             </div>
           </dl>
