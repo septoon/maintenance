@@ -320,7 +320,7 @@ const FuelSection: React.FC<FuelSectionProps> = ({
                         </dd>
                       </div>
                     )}
-                    {month.projectedDebtDeductionFromCarryover > 0 && month.debtDeductionAmount === 0 && (
+                    {/* {month.projectedDebtDeductionFromCarryover > 0 && month.debtDeductionAmount === 0 && (
                       <div className="flex items-center justify-between">
                         <dt className="font-medium text-slate-900 dark:text-slate-100">
                           План удержания в месяце:
@@ -329,11 +329,11 @@ const FuelSection: React.FC<FuelSectionProps> = ({
                           ≈ {formatNumber(month.projectedDebtDeductionFromCarryover, 2)} ₽
                         </dd>
                       </div>
-                    )}
+                    )} */}
                     {month.monthCarryoverDebtRub > 0 && (
                       <div className="flex items-center justify-between">
                         <dt className="font-medium text-slate-900 dark:text-slate-100">
-                          Перенос долга на след. месяц:
+                          Перенос на след. месяц:
                         </dt>
                         <dd className="text-base font-semibold text-red-600 dark:text-red-300">
                           {formatNumber(month.monthCarryoverDebtRub, 2)} ₽
