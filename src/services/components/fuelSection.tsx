@@ -108,6 +108,8 @@ const FuelSection: React.FC<FuelSectionProps> = ({
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [showDebtDeductionLiters, setShowDebtDeductionLiters] = useState(false);
   const [showCarryoverLiters, setShowCarryoverLiters] = useState(false);
+  const [showTotalsRefuelInRub, setShowTotalsRefuelInRub] = useState(false);
+  const [refuelViewByMonth, setRefuelViewByMonth] = useState<Record<string, boolean>>({});
 
   const years = useMemo(() => {
     const unique: Record<string, true> = {};
@@ -259,16 +261,23 @@ const FuelSection: React.FC<FuelSectionProps> = ({
                       <dt className="font-medium text-slate-900 dark:text-slate-100">
                         Заправлено:
                       </dt>
-                      <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                        {formatNumber(month.totalLiters)} л
-                      </dd>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <dt className="font-medium text-slate-900 dark:text-slate-100">
-                        Сумма заправки:
-                      </dt>
-                      <dd className="text-base font-light text-slate-900 dark:text-slate-100">
-                        {formatNumber(month.fuelCost, 2)} ₽
+                      <dd>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRefuelViewByMonth(prev => ({
+                              ...prev,
+                              [month.key]: !prev[month.key]
+                            }))
+                          }
+                          className="text-base font-semibold text-slate-900 underline decoration-dotted underline-offset-4 transition hover:opacity-80 dark:text-slate-100"
+                          title="Нажмите, чтобы переключить л/₽"
+                          aria-label="Переключить единицы заправки за месяц"
+                        >
+                          {refuelViewByMonth[month.key]
+                            ? `${formatNumber(month.fuelCost, 2)} ₽`
+                            : `${formatNumber(month.totalLiters)} л`}
+                        </button>
                       </dd>
                     </div>
                     <div className="flex items-center justify-between">
@@ -404,16 +413,18 @@ const FuelSection: React.FC<FuelSectionProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <dt className="font-medium text-slate-900 dark:text-slate-100">Заправлено:</dt>
-              <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                {formatNumber(fuelSummary.totals.totalLiters)} л
-              </dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="font-medium text-slate-900 dark:text-slate-100">
-                Сумма заправки:
-              </dt>
-              <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                {formatNumber(fuelSummary.totals.totalFuelCost, 2)} ₽
+              <dd>
+                <button
+                  type="button"
+                  onClick={() => setShowTotalsRefuelInRub(prev => !prev)}
+                  className="text-base font-semibold text-slate-900 underline decoration-dotted underline-offset-4 transition hover:opacity-80 dark:text-slate-100"
+                  title="Нажмите, чтобы переключить л/₽"
+                  aria-label="Переключить единицы заправки в итоге"
+                >
+                  {showTotalsRefuelInRub
+                    ? `${formatNumber(fuelSummary.totals.totalFuelCost, 2)} ₽`
+                    : `${formatNumber(fuelSummary.totals.totalLiters)} л`}
+                </button>
               </dd>
             </div>
             <div className="flex items-center justify-between">
