@@ -610,6 +610,7 @@ const FuelPage: React.FC<FuelPageProps> = ({ onClose }) => {
           paidCompensation,
           debtDeductionAmount,
           debtDeductionLiters,
+          effectiveDebtDeductionAmount,
           effectiveDebtDeductionLiters,
           effectiveAppliedCompensation,
           remainingCompensation,

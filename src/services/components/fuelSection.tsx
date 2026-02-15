@@ -15,6 +15,7 @@ type FuelSummaryMonth = {
   paidCompensation: number;
   debtDeductionAmount: number;
   debtDeductionLiters: number;
+  effectiveDebtDeductionAmount: number;
   effectiveDebtDeductionLiters: number;
   effectiveAppliedCompensation: number;
   remainingCompensation: number;
@@ -105,6 +106,8 @@ const FuelSection: React.FC<FuelSectionProps> = ({
 }) => {
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
+  const [showDebtDeductionLiters, setShowDebtDeductionLiters] = useState(false);
+  const [showCarryoverLiters, setShowCarryoverLiters] = useState(false);
 
   const years = useMemo(() => {
     const unique: Record<string, true> = {};
@@ -286,13 +289,24 @@ const FuelSection: React.FC<FuelSectionProps> = ({
                         {formatNumber(month.compensation, 0)} ₽
                       </dd>
                     </div>
-                    {month.effectiveAppliedCompensation > 0 && (
+                    {month.paidCompensation > 0 && (
                       <div className="flex items-center justify-between">
                         <dt className="font-medium text-slate-900 dark:text-slate-100">
-                          Учтено по месяцу:
+                          Выплачено:
                         </dt>
-                        <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                          {formatNumber(month.effectiveAppliedCompensation, 2)} ₽
+                        <dd className="text-base font-semibold text-emerald-700 dark:text-emerald-300">
+                          {formatNumber(month.paidCompensation, 2)} ₽
+                        </dd>
+                      </div>
+                    )}
+                    {month.effectiveDebtDeductionAmount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <dt className="font-medium text-slate-900 dark:text-slate-100">
+                          Списано:
+                        </dt>
+                        <dd className="text-base font-semibold text-red-600 dark:text-red-300">
+                          {month.debtDeductionAmount <= 0 && month.debtDeductionLiters > 0 ? '≈ ' : ''}
+                          {formatNumber(month.effectiveDebtDeductionAmount, 2)} ₽
                         </dd>
                       </div>
                     )}
@@ -316,18 +330,6 @@ const FuelSection: React.FC<FuelSectionProps> = ({
                         </dd>
                       </div>
                     )}
-                    <div className="flex items-center justify-between">
-                      <dt className="font-medium text-slate-900 dark:text-slate-100">
-                        К выплате за месяц:
-                      </dt>
-                      <dd
-                        className={`text-base font-semibold ${month.remainingCompensation <= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}
-                      >
-                        {month.remainingCompensation <= 0
-                          ? '0 ₽ (закрыто)'
-                          : `${formatNumber(month.remainingCompensation, 2)} ₽`}
-                      </dd>
-                    </div>
                     {month.monthCarryoverDebtRub > 0 && (
                       <div className="flex items-center justify-between">
                         <dt className="font-medium text-slate-900 dark:text-slate-100">
@@ -432,40 +434,38 @@ const FuelSection: React.FC<FuelSectionProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <dt className="font-medium text-slate-900 dark:text-slate-100">
-                Вычтено долга (₽):
+                Вычтено долга:
               </dt>
-              <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                {fuelSummary.totals.hasEstimatedDebtDeductionAmount ? '≈ ' : ''}
-                {formatNumber(fuelSummary.totals.effectiveDebtDeductionAmount, 2)} ₽
+              <dd>
+                <button
+                  type="button"
+                  onClick={() => setShowDebtDeductionLiters(prev => !prev)}
+                  className="text-base font-semibold text-slate-900 underline decoration-dotted underline-offset-4 transition hover:opacity-80 dark:text-slate-100"
+                  title="Нажмите, чтобы переключить ₽/л"
+                  aria-label="Переключить единицы вычета долга"
+                >
+                  {showDebtDeductionLiters
+                    ? `${fuelSummary.totals.hasEstimatedDebtDeductionLiters ? '≈ ' : ''}${formatNumber(fuelSummary.totals.effectiveDebtDeductionLiters, 2)} л`
+                    : `${fuelSummary.totals.hasEstimatedDebtDeductionAmount ? '≈ ' : ''}${formatNumber(fuelSummary.totals.effectiveDebtDeductionAmount, 2)} ₽`}
+                </button>
               </dd>
             </div>
             <div className="flex items-center justify-between">
               <dt className="font-medium text-slate-900 dark:text-slate-100">
-                Вычтено долга (л):
+                Перенос на след. месяц:
               </dt>
-              <dd className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                {fuelSummary.totals.hasEstimatedDebtDeductionLiters ? '≈ ' : ''}
-                {formatNumber(fuelSummary.totals.effectiveDebtDeductionLiters, 2)} л
-              </dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="font-medium text-slate-900 dark:text-slate-100">
-                Перенос долга на след. месяц (₽):
-              </dt>
-              <dd className="text-base font-semibold text-red-600 dark:text-red-300">
-                {fuelSummary.totals.carryoverDebtRub > 0
-                  ? `${formatNumber(fuelSummary.totals.carryoverDebtRub, 2)} ₽`
-                  : '0 ₽'}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="font-medium text-slate-900 dark:text-slate-100">
-                Перенос долга на след. месяц (л):
-              </dt>
-              <dd className="text-base font-semibold text-red-600 dark:text-red-300">
-                {fuelSummary.totals.carryoverDebtRub > 0
-                  ? `≈ ${formatNumber(fuelSummary.totals.carryoverDebtLiters, 2)} л`
-                  : '0 ₽'}
+              <dd>
+                <button
+                  type="button"
+                  onClick={() => setShowCarryoverLiters(prev => !prev)}
+                  className="text-base font-semibold text-red-600 underline decoration-dotted underline-offset-4 transition hover:opacity-80 dark:text-red-300"
+                  title="Нажмите, чтобы переключить ₽/л"
+                  aria-label="Переключить единицы переноса долга"
+                >
+                  {showCarryoverLiters
+                    ? `≈ ${formatNumber(fuelSummary.totals.carryoverDebtLiters, 2)} л`
+                    : `${formatNumber(fuelSummary.totals.carryoverDebtRub, 2)} ₽`}
+                </button>
               </dd>
             </div>
             <div className="flex items-center justify-between">
