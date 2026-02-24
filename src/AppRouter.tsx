@@ -4,7 +4,7 @@ import App from './App';
 import ProfilePage from './services/components/profilePage';
 import SalaryPage from './services/components/salaryPage';
 import FuelPage from './services/components/fuelPage';
-import MaintenancePage from './services/components/maintenancePage';
+import MaintenancePage from './services/components/MaintenancePage';
 
 const SalaryRoute: React.FC = () => {
   const navigate = useNavigate();

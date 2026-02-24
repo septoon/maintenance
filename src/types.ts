@@ -1,14 +1,24 @@
+export type MaintenancePart = {
+  name: string;
+  cost: number;
+};
+
 export type MaintenanceRecord = {
   id?: string;
   date: string;
   procedure: string;
   mileage: number;
+  parts?: MaintenancePart[] | null;
+  workCost?: number | null;
+  totalCost?: number | null;
 };
 
 export type MaintenanceRecordInput = {
   date: string;
   procedure: string;
   mileage: number;
+  parts?: MaintenancePart[] | null;
+  workCost?: number | null;
 };
 
 export type FuelRecord = {

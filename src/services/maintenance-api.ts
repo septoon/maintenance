@@ -1,21 +1,18 @@
 import axios from 'axios';
-import { MaintenanceRecord, MaintenanceRecordInput } from '../types';
+import { MaintenancePart, MaintenanceRecord, MaintenanceRecordInput } from '../types';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
 type ApiConfig = {
   readUrl: string;
   createUrl: string;
+  updateUrl: string;
 };
 
-function normalizeRecord(raw: MaintenanceRecordInput): MaintenanceRecord {
-  return {
-    id: undefined,
-    date: raw.date,
-    procedure: raw.procedure,
-    mileage: raw.mileage
-  };
-}
+type ApiOverrides = {
+  post: string | null;
+  put: string | null;
+};
 
 let cachedConfig: ApiConfig | null = null;
 
@@ -38,25 +35,32 @@ function toAbsoluteUrl(rawUrl: string, base?: string): URL {
   }
 }
 
-function extractPostOverride(parsed: URL): string | null {
-  let override: string | null = null;
+function extractOverrides(parsed: URL): ApiOverrides {
+  const overrides: ApiOverrides = {
+    post: null,
+    put: null
+  };
 
-  if (parsed.searchParams.has('post')) {
-    override = parsed.searchParams.get('post') ?? null;
-    parsed.searchParams.delete('post');
-  }
+  (['post', 'put'] as const).forEach(key => {
+    if (parsed.searchParams.has(key)) {
+      overrides[key] = parsed.searchParams.get(key) ?? null;
+      parsed.searchParams.delete(key);
+    }
+  });
 
   if (parsed.hash) {
     const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ''));
-    if (!override && hashParams.has('post')) {
-      override = hashParams.get('post') ?? null;
-    }
-    hashParams.delete('post');
+    (['post', 'put'] as const).forEach(key => {
+      if (!overrides[key] && hashParams.has(key)) {
+        overrides[key] = hashParams.get(key) ?? null;
+      }
+      hashParams.delete(key);
+    });
     const remainingHash = hashParams.toString();
     parsed.hash = remainingHash ? `#${remainingHash}` : '';
   }
 
-  return override;
+  return overrides;
 }
 
 function buildDefaultCreateUrl(parsedInput: URL): string {
@@ -76,7 +80,10 @@ function buildDefaultCreateUrl(parsedInput: URL): string {
 
     return parsed.toString();
   } catch (error) {
-    console.warn('Не удалось вычислить адрес сохранения. Используем REACT_APP_API_URL как есть.', error);
+    console.warn(
+      'Не удалось вычислить адрес сохранения. Используем REACT_APP_API_URL как есть.',
+      error
+    );
     return parsedInput.toString();
   }
 }
@@ -88,14 +95,144 @@ function resolveConfig(): ApiConfig {
 
   const baseUrl = ensureApiUrl();
   const parsed = toAbsoluteUrl(baseUrl);
-  const override = extractPostOverride(parsed);
+  const overrides = extractOverrides(parsed);
   const readUrl = parsed.toString();
-  const createUrl = override
-    ? toAbsoluteUrl(override, parsed.origin).toString()
+  const createUrl = overrides.post
+    ? toAbsoluteUrl(overrides.post, parsed.origin).toString()
     : buildDefaultCreateUrl(parsed);
+  const updateUrl = overrides.put
+    ? toAbsoluteUrl(overrides.put, parsed.origin).toString()
+    : createUrl;
 
-  cachedConfig = { readUrl, createUrl };
+  cachedConfig = { readUrl, createUrl, updateUrl };
   return cachedConfig;
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function createRecordId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `mnt-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizePart(raw: any): MaintenancePart | null {
+  const name = String(raw?.name ?? '').trim();
+  const cost = toNullableNumber(raw?.cost);
+
+  if (!name || cost === null || cost < 0) {
+    return null;
+  }
+
+  return { name, cost };
+}
+
+function normalizeParts(raw: unknown): MaintenancePart[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  const result: MaintenancePart[] = [];
+  raw.forEach(item => {
+    const part = normalizePart(item);
+    if (part) {
+      result.push(part);
+    }
+  });
+  return result;
+}
+
+function sumParts(parts?: MaintenancePart[] | null): number {
+  return (parts ?? []).reduce((sum, part) => sum + (part.cost ?? 0), 0);
+}
+
+function deriveTotal(parts: MaintenancePart[], workCost: number | null): number | null {
+  if (parts.length === 0 && workCost === null) {
+    return null;
+  }
+  return sumParts(parts) + (workCost ?? 0);
+}
+
+function resolveParts(raw: any): MaintenancePart[] {
+  const normalizedParts = normalizeParts(raw?.parts);
+  if (normalizedParts.length > 0) {
+    return normalizedParts;
+  }
+
+  const legacyPartsCost = toNullableNumber(raw?.partsCost);
+  if (legacyPartsCost === null || legacyPartsCost < 0) {
+    return [];
+  }
+
+  return [{ name: 'Запчасти', cost: legacyPartsCost }];
+}
+
+function normalizeRecord(raw: any): MaintenanceRecord {
+  const parts = resolveParts(raw);
+  const workCost = toNullableNumber(raw?.workCost);
+  const totalCost = toNullableNumber(raw?.totalCost);
+
+  return {
+    id: raw?.id ?? raw?._id,
+    date: String(raw?.date ?? ''),
+    procedure: String(raw?.procedure ?? ''),
+    mileage: Number(raw?.mileage ?? 0),
+    parts,
+    workCost,
+    totalCost: totalCost ?? deriveTotal(parts, workCost)
+  };
+}
+
+function normalizeInput(input: MaintenanceRecordInput): MaintenanceRecord {
+  const parts = normalizeParts(input.parts);
+  const workCost = toNullableNumber(input.workCost);
+
+  return {
+    id: undefined,
+    date: String(input.date ?? ''),
+    procedure: String(input.procedure ?? ''),
+    mileage: Number(input.mileage ?? 0),
+    parts,
+    workCost,
+    totalCost: deriveTotal(parts, workCost)
+  };
+}
+
+function toRequestPayload(record: MaintenanceRecord): Record<string, unknown> {
+  const parts = normalizeParts(record.parts);
+  const partsCost = parts.length > 0 ? sumParts(parts) : null;
+
+  return {
+    ...(record.id ? { id: record.id } : {}),
+    date: record.date,
+    procedure: record.procedure,
+    mileage: record.mileage,
+    parts,
+    partsCost,
+    workCost: record.workCost ?? null
+  };
+}
+
+function appendIdToUrl(baseUrl: string, id: string): string {
+  const parsed = toAbsoluteUrl(baseUrl);
+  parsed.pathname = `${parsed.pathname.replace(/\/$/, '')}/${encodeURIComponent(id)}`;
+  return parsed.toString();
+}
+
+function buildSafeWriteError(operation: 'создать' | 'обновить'): Error {
+  return new Error(
+    `Безопасный режим: нельзя ${operation} запись через полный перезапись JSON. ` +
+      'Настройте точечный API endpoint для POST/PUT (например, через параметры post/put в REACT_APP_API_URL).'
+  );
 }
 
 export async function fetchRecords(): Promise<MaintenanceRecord[]> {
@@ -109,132 +246,124 @@ export async function fetchRecords(): Promise<MaintenanceRecord[]> {
       responseType: 'json'
     });
 
-    const data = response.data;
-
-    if (!Array.isArray(data)) {
+    if (!Array.isArray(response.data)) {
       throw new Error('Ответ сервера должен быть массивом записей.');
     }
 
-    return data.map((item: any) => ({
-      id: item.id ?? item._id,
-      date: String(item.date ?? ''),
-      procedure: String(item.procedure ?? ''),
-      mileage: Number(item.mileage ?? 0)
-    }));
+    return response.data.map(normalizeRecord);
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      const message = status ? `Не удалось получить данные (${status})` : 'Не удалось получить данные.';
+      const message = status
+        ? `Не удалось получить данные (${status})`
+        : 'Не удалось получить данные.';
       throw new Error(message);
+    }
+
+    if (error instanceof Error) {
+      throw error;
     }
 
     throw new Error('Не удалось получить данные.');
   }
 }
 
-export async function createRecord(payload: MaintenanceRecordInput): Promise<MaintenanceRecord> {
-  const { createUrl, readUrl } = resolveConfig();
-  const url = createUrl;
+export async function createRecord(input: MaintenanceRecordInput): Promise<MaintenanceRecord> {
+  const { createUrl } = resolveConfig();
+  const normalized = normalizeInput(input);
+  const recordForCreate: MaintenanceRecord = { ...normalized, id: createRecordId() };
+  const payload = toRequestPayload(recordForCreate);
 
   if (process.env.NODE_ENV !== 'production') {
-    console.debug('[maintenance] POST url:', url);
+    console.debug('[maintenance] POST url:', createUrl);
   }
 
   try {
-    const response = await axios.post(url, payload, {
+    const response = await axios.post(createUrl, payload, {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json'
       },
-      validateStatus: status => status >= 200 && status < 300 || status === 204
+      validateStatus: status => (status >= 200 && status < 300) || status === 204
     });
 
     if (response.status === 204 || response.data === undefined || response.data === '') {
-      return {
-        id: undefined,
-        date: payload.date,
-        procedure: payload.procedure,
-        mileage: payload.mileage
-      };
+      return recordForCreate;
     }
 
-    const data = response.data;
-
-    return {
-      id: data.id ?? data._id,
-      date: data.date ?? payload.date,
-      procedure: data.procedure ?? payload.procedure,
-      mileage: Number(data.mileage ?? payload.mileage)
-    };
+    const created = normalizeRecord({ ...recordForCreate, ...payload, ...response.data });
+    if (!created.id) {
+      created.id = recordForCreate.id;
+    }
+    return created;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       if (status === 404 || status === 405) {
-        return appendRecordViaFileApi(readUrl, payload);
+        throw buildSafeWriteError('создать');
       }
+      const message = status
+        ? `Не удалось сохранить запись (${status})`
+        : 'Не удалось сохранить запись.';
+      throw new Error(message);
     }
 
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      if (status === 405) {
-        throw new Error('Сервер не принимает POST-запросы. Проверьте путь /api/* на сервере.');
-      }
-      const message = status ? `Не удалось сохранить запись (${status})` : 'Не удалось сохранить запись.';
-      throw new Error(message);
+    if (error instanceof Error) {
+      throw error;
     }
 
     throw new Error('Не удалось сохранить запись.');
   }
 }
 
-async function appendRecordViaFileApi(readUrl: string, payload: MaintenanceRecordInput): Promise<MaintenanceRecord> {
-  let parsedRead: URL;
-  try {
-    parsedRead = toAbsoluteUrl(readUrl);
-  } catch {
-    throw new Error('Не удалось сохранить запись: невалидный адрес данных.');
+export async function updateRecord(
+  target: MaintenanceRecord,
+  input: MaintenanceRecordInput
+): Promise<MaintenanceRecord> {
+  const { updateUrl } = resolveConfig();
+  const normalized = normalizeInput(input);
+  const payload = toRequestPayload({ ...normalized, id: target.id });
+
+  if (!target.id) {
+    throw new Error(
+      'Безопасный режим: нельзя обновить запись без id. Нужен точечный endpoint и id записи.'
+    );
   }
 
-  const segments = parsedRead.pathname.split('/').filter(Boolean);
-  const lastSegment = segments[segments.length - 1];
-  if (!lastSegment) {
-    throw new Error('Не удалось сохранить запись: неизвестный файл данных.');
-  }
-
-  const fileName = lastSegment.includes('.') ? lastSegment : `${lastSegment}.json`;
-  const saveUrl = new URL(`/api/save/${fileName}`, parsedRead.origin).toString();
-
   try {
-    const existing = await axios.get(parsedRead.toString(), {
-      headers: { Accept: 'application/json' },
-      responseType: 'json'
-    });
-
-    if (!Array.isArray(existing.data)) {
-      throw new Error('Формат данных на сервере не поддерживает добавление записей.');
-    }
-
-    const updatedData = [...existing.data, normalizeRecord(payload)];
-
-    await axios.put(saveUrl, updatedData, {
+    const response = await axios.put(appendIdToUrl(updateUrl, String(target.id)), payload, {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json'
-      }
+      },
+      validateStatus: status => (status >= 200 && status < 300) || status === 204
     });
 
-    return normalizeRecord(payload);
-  } catch (fallbackError) {
-    if (axios.isAxiosError(fallbackError)) {
-      const status = fallbackError.response?.status;
-      const message = status ? `Не удалось сохранить запись (${status})` : 'Не удалось сохранить запись.';
+    if (response.status === 204 || response.data === undefined || response.data === '') {
+      return { ...normalized, id: target.id };
+    }
+
+    const updated = normalizeRecord({ ...target, ...payload, ...response.data });
+    if (!updated.id && target.id) {
+      updated.id = target.id;
+    }
+    return updated;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 404 || status === 405) {
+        throw buildSafeWriteError('обновить');
+      }
+      const message = status
+        ? `Не удалось обновить запись (${status})`
+        : 'Не удалось обновить запись.';
       throw new Error(message);
     }
 
-    if (fallbackError instanceof Error) {
-      throw fallbackError;
+    if (error instanceof Error) {
+      throw error;
     }
 
-    throw new Error('Не удалось сохранить запись.');
+    throw new Error('Не удалось обновить запись.');
   }
 }

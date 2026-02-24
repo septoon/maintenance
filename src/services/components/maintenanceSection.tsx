@@ -11,6 +11,7 @@ type MaintenanceSectionProps = {
   submitting: boolean;
   apiIsConfigured: boolean;
   onRefresh: () => void;
+  onEditRecord: (record: MaintenanceRecord) => void;
 };
 
 function formatDisplayDate(value: string) {
@@ -18,6 +19,13 @@ function formatDisplayDate(value: string) {
   const [year, month, day] = value.split('-');
   if (!year || !month || !day) return value;
   return `${day}.${month}.${year}`;
+}
+
+function formatMoney(value: number): string {
+  return value.toLocaleString('ru-RU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
 }
 
 const intervalByProcedure: Record<string, number> = {
@@ -35,7 +43,8 @@ const MaintenanceSection: React.FC<MaintenanceSectionProps> = ({
   loading,
   submitting,
   apiIsConfigured,
-  onRefresh
+  onRefresh,
+  onEditRecord
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -76,6 +85,17 @@ const MaintenanceSection: React.FC<MaintenanceSectionProps> = ({
           {lastRecords.map(record => {
             const interval = intervalByProcedure[record.procedure];
             const nextMileage = typeof interval === 'number' ? record.mileage + interval : null;
+            const parts = Array.isArray(record.parts) ? record.parts : [];
+            const canEdit = Boolean(record.id);
+            const partsCost = parts.reduce((sum, part) => sum + (part.cost ?? 0), 0);
+            const hasParts = parts.length > 0;
+            const hasWorkCost = record.workCost !== null && record.workCost !== undefined;
+            const totalCost =
+              record.totalCost !== null && record.totalCost !== undefined
+                ? record.totalCost
+                : hasParts || hasWorkCost
+                  ? partsCost + (record.workCost ?? 0)
+                  : null;
 
             return (
               <li
@@ -100,6 +120,71 @@ const MaintenanceSection: React.FC<MaintenanceSectionProps> = ({
                   ) : (
                     <span>не задано</span>
                   )}
+                </div>
+                {hasParts ? (
+                  <>
+                    <div className="text-sm text-slate-600 dark:text-slate-400">Запчасти:</div>
+                  <div className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
+                    {parts.map((part, index) => (
+                      <div
+                        key={`${record.id ?? record.date}-${index}-${part.name}`}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-slate-900/10 bg-white/60 px-2 py-1 dark:border-slate-700/60 dark:bg-slate-900/50"
+                      >
+                        <span className="truncate">{part.name}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">
+                          {formatMoney(part.cost)} ₽
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                      <span>Итого запчасти</span>
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">
+                        {formatMoney(partsCost)} ₽
+                      </span>
+                    </div>
+                  </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-400">
+                    <span>Запчасти</span>
+                    <span>не указано</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-400">
+                  <span>Работа</span>
+                  {hasWorkCost ? (
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">
+                      {formatMoney(record.workCost ?? 0)} ₽
+                    </span>
+                  ) : (
+                    <span>не указано</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-400">
+                  <span>Итог</span>
+                  {totalCost !== null ? (
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">
+                      {formatMoney(totalCost)} ₽
+                    </span>
+                  ) : (
+                    <span>не указано</span>
+                  )}
+                </div>
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onEditRecord(record)}
+                    disabled={submitting || !canEdit}
+                    title={
+                      canEdit
+                        ? 'Редактировать запись'
+                        : 'У записи нет id. Добавьте id в JSON, чтобы включить редактирование.'
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-900/10 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200"
+                  >
+                    <i className="pi pi-pencil text-xs" />
+                    Редактировать
+                  </button>
                 </div>
               </li>
             );

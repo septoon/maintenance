@@ -1,7 +1,7 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
-import { createRecord, fetchRecords } from '../maintenanceApi';
-import { MaintenanceRecord } from '../../types';
+import { createRecord, fetchRecords, updateRecord } from '../maintenance-api';
+import { MaintenancePart, MaintenanceRecord } from '../../types';
 import MaintenanceForm, { MaintenanceFormValues } from './maintenanceForm';
 import MaintenanceSection from './maintenanceSection';
 
@@ -9,14 +9,57 @@ type MaintenancePageProps = {
   onClose: () => void;
 };
 
+function createPartId(): string {
+  return `part-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 const initialFormState: MaintenanceFormValues = {
   date: '',
   procedure: '',
-  mileage: ''
+  mileage: '',
+  parts: [],
+  workCost: ''
 };
 
 function sortRecords(records: MaintenanceRecord[]) {
   return [...records].sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+function sameNumber(left?: number | null, right?: number | null): boolean {
+  const a = left ?? null;
+  const b = right ?? null;
+  if (a === null || b === null) {
+    return a === b;
+  }
+  return Number(a) === Number(b);
+}
+
+function sameParts(left?: MaintenancePart[] | null, right?: MaintenancePart[] | null): boolean {
+  const a = left ?? [];
+  const b = right ?? [];
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  return a.every((part, index) => {
+    const other = b[index];
+    if (!other) return false;
+    return part.name === other.name && sameNumber(part.cost, other.cost);
+  });
+}
+
+function isSameRecord(left: MaintenanceRecord, right: MaintenanceRecord): boolean {
+  if (left.id && right.id && String(left.id) === String(right.id)) {
+    return true;
+  }
+
+  return (
+    left.date === right.date &&
+    left.procedure === right.procedure &&
+    sameNumber(left.mileage, right.mileage) &&
+    sameParts(left.parts, right.parts) &&
+    sameNumber(left.workCost, right.workCost)
+  );
 }
 
 const MaintenancePage: React.FC<MaintenancePageProps> = ({ onClose }) => {
@@ -27,6 +70,7 @@ const MaintenancePage: React.FC<MaintenancePageProps> = ({ onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<MaintenanceRecord | null>(null);
 
   const apiIsConfigured = Boolean(process.env.REACT_APP_API_URL);
 
@@ -66,6 +110,60 @@ const MaintenancePage: React.FC<MaintenancePageProps> = ({ onClose }) => {
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
+  const handlePartChange = (
+    partId: string,
+    field: 'name' | 'cost',
+    value: string
+  ) => {
+    setForm(prev => ({
+      ...prev,
+      parts: prev.parts.map(part => (part.id === partId ? { ...part, [field]: value } : part))
+    }));
+  };
+
+  const handlePartAdd = () => {
+    setForm(prev => ({
+      ...prev,
+      parts: [...prev.parts, { id: createPartId(), name: '', cost: '' }]
+    }));
+  };
+
+  const handlePartRemove = (partId: string) => {
+    setForm(prev => ({
+      ...prev,
+      parts: prev.parts.filter(part => part.id !== partId)
+    }));
+  };
+
+  const openCreateMaintenanceDialog = () => {
+    setEditingRecord(null);
+    setForm(initialFormState);
+    setError(null);
+    setSuccess(null);
+    setMaintenanceDialogOpen(true);
+  };
+
+  const openEditMaintenanceDialog = (record: MaintenanceRecord) => {
+    setEditingRecord(record);
+    setForm({
+      date: record.date,
+      procedure: record.procedure,
+      mileage: String(record.mileage),
+      parts: (record.parts ?? []).map(part => ({
+        id: createPartId(),
+        name: part.name,
+        cost: String(part.cost)
+      })),
+      workCost:
+        record.workCost !== null && record.workCost !== undefined
+          ? String(record.workCost)
+          : ''
+    });
+    setError(null);
+    setSuccess(null);
+    setMaintenanceDialogOpen(true);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!apiIsConfigured) {
@@ -75,9 +173,12 @@ const MaintenancePage: React.FC<MaintenancePageProps> = ({ onClose }) => {
 
     const trimmedProcedure = form.procedure.trim();
     const trimmedDate = form.date.trim();
-    const mileageNumber = Number(form.mileage);
+    const mileageRaw = form.mileage.trim();
+    const mileageNumber = Number(mileageRaw);
+    const workCostRaw = form.workCost.trim().replace(',', '.');
+    const workCostNumber = workCostRaw ? Number(workCostRaw) : null;
 
-    if (!trimmedDate || !trimmedProcedure || !form.mileage) {
+    if (!trimmedDate || !trimmedProcedure || !mileageRaw) {
       setError('Заполните дату, процедуру и пробег.');
       return;
     }
@@ -87,17 +188,64 @@ const MaintenancePage: React.FC<MaintenancePageProps> = ({ onClose }) => {
       return;
     }
 
+    if (workCostNumber !== null && (Number.isNaN(workCostNumber) || workCostNumber < 0)) {
+      setError('Стоимость работы должна быть неотрицательным числом.');
+      return;
+    }
+
+    const parts: MaintenancePart[] = [];
+    for (const part of form.parts) {
+      const partName = part.name.trim();
+      const partCostRaw = part.cost.trim().replace(',', '.');
+
+      if (!partName && !partCostRaw) {
+        continue;
+      }
+
+      if (!partName || !partCostRaw) {
+        setError('Для каждой запчасти укажите название и стоимость.');
+        return;
+      }
+
+      const partCost = Number(partCostRaw);
+      if (Number.isNaN(partCost) || partCost < 0) {
+        setError('Стоимость запчасти должна быть неотрицательным числом.');
+        return;
+      }
+
+      parts.push({
+        name: partName,
+        cost: partCost
+      });
+    }
+
     try {
       setSubmitting(true);
       setError(null);
-      const record = await createRecord({
+      const payload = {
         date: trimmedDate,
         procedure: trimmedProcedure,
-        mileage: mileageNumber
-      });
-      setRecords(prev => sortRecords([...prev, record]));
+        mileage: mileageNumber,
+        parts,
+        workCost: workCostNumber
+      };
+
+      if (editingRecord) {
+        const updated = await updateRecord(editingRecord, payload);
+        setRecords(prev =>
+          sortRecords(
+            prev.map(item => (isSameRecord(item, editingRecord) ? updated : item))
+          )
+        );
+        setSuccess('Запись успешно обновлена.');
+      } else {
+        const record = await createRecord(payload);
+        setRecords(prev => sortRecords([...prev, record]));
+        setSuccess('Запись успешно сохранена.');
+      }
+
       setForm(initialFormState);
-      setSuccess('Запись успешно сохранена.');
+      setEditingRecord(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Не удалось сохранить запись.';
       setError(message);
@@ -106,7 +254,7 @@ const MaintenancePage: React.FC<MaintenancePageProps> = ({ onClose }) => {
     }
   };
 
-  const lastRecords = useMemo(() => sortRecords(records).slice(0, 10), [records]);
+  const lastRecords = useMemo(() => sortRecords(records), [records]);
 
   const cardClass =
     'rounded-3xl border border-white/40 bg-white/85 p-6 shadow-card backdrop-blur-lg dark:border-slate-800/70 dark:bg-slate-900/80 dark:shadow-[0_20px_50px_rgba(0,0,0,0.35)]';
@@ -149,6 +297,7 @@ const MaintenancePage: React.FC<MaintenancePageProps> = ({ onClose }) => {
             submitting={submitting}
             apiIsConfigured={apiIsConfigured}
             onRefresh={loadMaintenanceRecords}
+            onEditRecord={openEditMaintenanceDialog}
           />
         </div>
       </div>
@@ -157,7 +306,7 @@ const MaintenancePage: React.FC<MaintenancePageProps> = ({ onClose }) => {
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={() => setMaintenanceDialogOpen(true)}
+            onClick={openCreateMaintenanceDialog}
             className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-blue-500 text-white shadow-[0_12px_30px_rgba(37,99,235,0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_35px_rgba(37,99,235,0.5)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             aria-label="Добавить запись обслуживания"
           >
@@ -167,11 +316,17 @@ const MaintenancePage: React.FC<MaintenancePageProps> = ({ onClose }) => {
       </div>
 
       <Dialog
-        header="Авто обслуживание"
+        header={editingRecord ? 'Редактировать обслуживание' : 'Авто обслуживание'}
         visible={maintenanceDialogOpen}
         position="bottom"
         modal
-        onHide={() => setMaintenanceDialogOpen(false)}
+        onHide={() => {
+          setMaintenanceDialogOpen(false);
+          setEditingRecord(null);
+          setForm(initialFormState);
+          setError(null);
+          setSuccess(null);
+        }}
         style={dialogStyle}
         className="p-0"
         headerClassName="bg-white/90 text-slate-900 dark:bg-slate-900/90 dark:text-slate-100"
@@ -181,12 +336,16 @@ const MaintenancePage: React.FC<MaintenancePageProps> = ({ onClose }) => {
           sectionClassName="mb-4"
           fieldClassName={fieldClasses}
           buttonClassName={primaryButtonClass}
+          submitLabel={editingRecord ? 'Сохранить изменения' : 'Добавить запись'}
           form={form}
           submitting={submitting}
           apiIsConfigured={apiIsConfigured}
           error={error}
           success={success}
           onChange={handleChange}
+          onPartChange={handlePartChange}
+          onPartAdd={handlePartAdd}
+          onPartRemove={handlePartRemove}
           onSubmit={handleSubmit}
         />
       </Dialog>
